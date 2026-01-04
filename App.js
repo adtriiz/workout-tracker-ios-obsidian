@@ -6,7 +6,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import { COLORS } from './src/theme/tokens';
 import Dashboard from './src/screens/Dashboard';
 import LiveWorkout from './src/screens/LiveWorkout';
-import { useWorkout, useExercises, useTemplates, useSettings } from './src/hooks/useWorkout';
+import { useWorkout, useExercises, useTemplates, useSettings, useLogs } from './src/hooks/useWorkout';
 import { ObsidianExport } from './src/services/ObsidianExport';
 import ExerciseManager from './src/screens/ExerciseManager';
 import TemplateManager from './src/screens/TemplateManager';
@@ -14,6 +14,8 @@ import PropertyConfig from './src/screens/PropertyConfig';
 
 import WorkoutSetup from './src/screens/WorkoutSetup';
 import TemplateEditor from './src/screens/TemplateEditor';
+
+import ActivityLog from './src/screens/ActivityLog';
 
 // Keep the splash screen visible while we fetch resources
 SplashScreen.preventAutoHideAsync();
@@ -27,6 +29,7 @@ export default function App() {
   const [currentScreen, setCurrentScreen] = useState('DASHBOARD');
   const [pendingTemplate, setPendingTemplate] = useState(null);
   const { activeWorkout, startWorkout, addSet, updateSet, finishWorkout, cancelWorkout } = useWorkout();
+  const { logs, deleteLog } = useLogs();
   const { exercises, muscleGroups, addExercise, deleteExercise } = useExercises();
   const { templates, addTemplate, deleteTemplate } = useTemplates();
   const { settings, saveSettings } = useSettings();
@@ -119,6 +122,8 @@ export default function App() {
             onClose={() => setCurrentScreen('DASHBOARD')}
           />
         );
+      case 'ACTIVITY':
+        return <ActivityLog logs={logs} onDeleteLog={deleteLog} onClose={() => setCurrentScreen('DASHBOARD')} />;
       case 'SETTINGS':
         return <PropertyConfig settings={settings} onSave={saveSettings} onClose={() => setCurrentScreen('DASHBOARD')} />;
       case 'DASHBOARD':
@@ -132,6 +137,7 @@ export default function App() {
             onOpenExercises={() => setCurrentScreen('EXERCISES')}
             onOpenTemplates={() => setCurrentScreen('TEMPLATES')}
             onOpenSettings={() => setCurrentScreen('SETTINGS')}
+            onOpenActivity={() => setCurrentScreen('ACTIVITY')}
           />
         );
     }

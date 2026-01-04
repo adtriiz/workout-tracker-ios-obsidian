@@ -3,34 +3,36 @@ import { StyleSheet, Text, View, ScrollView, TouchableOpacity, Dimensions } from
 import { COLORS, SPACING, TYPOGRAPHY, BORDERS } from '../theme/tokens';
 import { Activity, Plus, Settings as SettingsIcon, ClipboardList, Dumbbell, Calendar } from 'lucide-react-native';
 import { useLogs } from '../hooks/useWorkout';
-import { format, subDays, isSameDay, parseISO } from 'date-fns';
+import { format, subDays, isSameDay, parseISO, differenceInDays, startOfYear, endOfYear, eachWeekOfInterval, isSameWeek } from 'date-fns';
 
 const FrequencyGraph = ({ logs }) => {
-    // Generate last 10 weeks of activity
-    const weeks = 10;
-    const days = weeks * 7;
     const today = new Date();
-    const frequencyData = Array.from({ length: days }).map((_, i) => {
-        const date = subDays(today, days - 1 - i);
-        const count = logs.filter(log => isSameDay(parseISO(log.endTime), date)).length;
-        return { date, count };
+    const start = startOfYear(today);
+    const end = endOfYear(today);
+    const weeks = eachWeekOfInterval({ start, end }, { weekStartsOn: 1 });
+
+    const weeklyData = weeks.map(weekStart => {
+        const count = logs.filter(log => isSameWeek(parseISO(log.endTime), weekStart, { weekStartsOn: 1 })).length;
+        return { weekStart, count };
     });
 
     return (
         <View style={styles.graphContainer}>
             <View style={styles.graphHeader}>
                 <Calendar color={COLORS.primary} size={16} />
-                <Text style={styles.graphTitle}>CONSISTENCY_MATRIX</Text>
+                <Text style={styles.graphTitle}>CONSISTENCY_MATRIX_{today.getFullYear()}</Text>
             </View>
             <View style={styles.heatmapGrid}>
-                {frequencyData.map((day, i) => (
+                {weeklyData.map((week, i) => (
                     <View
                         key={i}
                         style={[
                             styles.heatmapCell,
                             {
-                                backgroundColor: day.count > 0 ? COLORS.primary : COLORS.surfaceElevated,
-                                opacity: day.count > 0 ? Math.min(0.4 + (day.count * 0.2), 1) : 1
+                                backgroundColor: week.count > 0 ? COLORS.primary : COLORS.surfaceElevated,
+                                opacity: week.count > 0 ? Math.min(0.2 + (week.count * 0.2), 1) : 1,
+                                borderColor: isSameWeek(today, week.weekStart, { weekStartsOn: 1 }) ? COLORS.primary : 'transparent',
+                                borderWidth: isSameWeek(today, week.weekStart, { weekStartsOn: 1 }) ? 1 : 0,
                             }
                         ]}
                     />
@@ -41,7 +43,7 @@ const FrequencyGraph = ({ logs }) => {
     );
 };
 
-const Dashboard = ({ onStart, onOpenExercises, onOpenTemplates, onOpenSettings }) => {
+const Dashboard = ({ onStart, onOpenExercises, onOpenTemplates, onOpenSettings, onOpenActivity }) => {
     const { logs } = useLogs();
     const recentLogs = [...logs].sort((a, b) => new Date(b.endTime) - new Date(a.endTime)).slice(0, 3);
 
@@ -62,9 +64,16 @@ const Dashboard = ({ onStart, onOpenExercises, onOpenTemplates, onOpenSettings }
             <ScrollView contentContainerStyle={styles.content}>
                 <FrequencyGraph logs={logs} />
 
-                <View style={styles.sectionHeader}>
-                    <Activity color={COLORS.primary} size={18} />
-                    <Text style={styles.sectionTitle}>RECENT_ACTIVITY</Text>
+                <View style={[styles.sectionHeader, { justifyContent: 'space-between' }]}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: SPACING.sm }}>
+                        <Activity color={COLORS.primary} size={18} />
+                        <Text style={styles.sectionTitle}>RECENT_ACTIVITY</Text>
+                    </View>
+                    {logs.length > 0 && (
+                        <TouchableOpacity onPress={onOpenActivity}>
+                            <Text style={styles.viewAllText}>VIEW_BUFFER</Text>
+                        </TouchableOpacity>
+                    )}
                 </View>
 
                 {recentLogs.length === 0 ? (
@@ -176,6 +185,12 @@ const styles = StyleSheet.create({
         color: COLORS.text,
         fontFamily: TYPOGRAPHY.familyMonoBold,
         fontSize: TYPOGRAPHY.size.md,
+    },
+    viewAllText: {
+        color: COLORS.primary,
+        fontFamily: TYPOGRAPHY.familyMonoBold,
+        fontSize: 10,
+        textDecorationLine: 'underline',
     },
     emptyState: {
         backgroundColor: COLORS.surface,

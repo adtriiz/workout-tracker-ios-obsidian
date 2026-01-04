@@ -209,5 +209,10 @@ export const useLogs = () => {
         loadLogs();
     }, []);
 
-    return { logs, refresh: loadLogs };
+    const deleteLog = async (id) => {
+        await StorageService.deleteLog(id);
+        await loadLogs();
+    };
+
+    return { logs, deleteLog, refresh: loadLogs };
 };

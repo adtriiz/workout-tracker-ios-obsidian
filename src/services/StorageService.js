@@ -88,6 +88,12 @@ export const StorageService = {
         await this.save(KEYS.LOGS, logs);
     },
 
+    async deleteLog(id) {
+        const logs = await this.getLogs();
+        const updated = logs.filter(l => l.id !== id);
+        await this.save(KEYS.LOGS, updated);
+    },
+
     async getSettings() {
         const defaultSettings = {
             yamlMapping: {
