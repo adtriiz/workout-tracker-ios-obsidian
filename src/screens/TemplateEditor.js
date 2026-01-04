@@ -5,6 +5,7 @@ import { X, Plus, Trash2, ArrowUp, ArrowDown, Save, Clock, Dumbbell, Hash, Link 
 
 const TemplateEditor = ({ exercises, onSave, onCancel, initialTemplate = null }) => {
     const [name, setName] = useState(initialTemplate ? initialTemplate.name : '');
+    const [workoutType, setWorkoutType] = useState(initialTemplate ? initialTemplate.workoutType : '');
     const [templateExercises, setTemplateExercises] = useState(
         initialTemplate ? initialTemplate.exercises.map(ex => ({
             ...ex,
@@ -98,6 +99,7 @@ const TemplateEditor = ({ exercises, onSave, onCancel, initialTemplate = null })
         onSave({
             id: initialTemplate ? initialTemplate.id : Date.now().toString(),
             name,
+            workoutType,
             exercises: sanitizedExercises
         });
     };
@@ -157,6 +159,17 @@ const TemplateEditor = ({ exercises, onSave, onCancel, initialTemplate = null })
                     value={name}
                     onChangeText={setName}
                     placeholder="Ex: PUSH_HEAVY_A"
+                    placeholderTextColor={COLORS.textMuted}
+                />
+
+                <View style={{ height: SPACING.md }} />
+
+                <Text style={styles.label}>WORKOUT_TYPE:</Text>
+                <TextInput
+                    style={styles.nameInput}
+                    value={workoutType}
+                    onChangeText={setWorkoutType}
+                    placeholder="Ex: Hypertrophy"
                     placeholderTextColor={COLORS.textMuted}
                 />
             </View>

@@ -15,6 +15,8 @@ export const WorkoutFactory = {
             id: Date.now().toString(),
             startTime: new Date().toISOString(),
             templateId: template.id,
+            templateName: template.name,
+            workoutType: template.workoutType,
             exercises: template.exercises.map(e => ({
                 ...e,
                 instanceId: Math.random().toString(36).substr(2, 9),

@@ -4,16 +4,40 @@ export const MarkdownGenerator = {
     generate(workout, settings) {
         const { yamlMapping, tags } = settings;
         const dateStr = format(new Date(workout.startTime), 'yyyy-MM-dd HH:mm');
+        const cleanTags = tags.map(t => t.replace('#', '')).join(', ');
+        const workoutType = workout.workoutType ? `"[[${workout.workoutType}]]"` : '';
 
         let markdown = `---\n`;
         markdown += `${yamlMapping.date}: ${dateStr}\n`;
-        markdown += `${yamlMapping.type}: ${workout.templateName || 'Manual Session'}\n`;
+        markdown += `${yamlMapping.type}: ${workoutType}\n`;
         markdown += `${yamlMapping.duration}: ${workout.duration} min\n`;
         markdown += `${yamlMapping.volume}: ${this.calculateTotalVolume(workout)}\n`;
-        markdown += `${yamlMapping.tags}: ${tags.join(', ')}\n`;
+
+        // Per-exercise volume properties
+        if (workout.exercises) {
+            const volumeMap = {};
+            workout.exercises.forEach(ex => {
+                if (!ex.name) return;
+                const vol = this.calculateExerciseVolume(ex);
+                if (vol > 0) {
+                    const key = `${ex.name.replace(/[^a-zA-Z0-9]/g, '_')}_volume`;
+                    if (volumeMap[key]) {
+                        volumeMap[key] += vol;
+                    } else {
+                        volumeMap[key] = vol;
+                    }
+                }
+            });
+
+            Object.entries(volumeMap).forEach(([key, val]) => {
+                markdown += `${key}: ${val}\n`;
+            });
+        }
+
+        markdown += `${yamlMapping.tags}: ${cleanTags}\n`;
         markdown += `---\n\n`;
 
-        markdown += `# Workout: ${workout.templateName || format(new Date(workout.startTime), 'EEEE, MMM d')}\n\n`;
+        markdown += `# ${workout.templateName || format(new Date(workout.startTime), 'EEEE, MMM d')} - ${format(new Date(workout.startTime), 'yyyy-MM-dd')}\n\n`;
 
         const groups = this.groupExercises(workout.exercises);
 
@@ -35,9 +59,15 @@ export const MarkdownGenerator = {
 
     calculateTotalVolume(workout) {
         if (!workout || !workout.exercises) return 0;
-        return workout.exercises.reduce((acc, ex) => {
-            if (!ex.sets) return acc;
-            return acc + ex.sets.reduce((sAcc, s) => sAcc + ((s.weight || 0) * (s.reps || 0)), 0);
+        return workout.exercises.reduce((acc, ex) => acc + this.calculateExerciseVolume(ex), 0);
+    },
+
+    calculateExerciseVolume(exercise) {
+        if (!exercise || !exercise.sets) return 0;
+        return exercise.sets.reduce((acc, set) => {
+            const weight = parseFloat(set.weight) || 0;
+            const reps = parseFloat(set.reps) || 0;
+            return acc + (weight * reps);
         }, 0);
     },
 

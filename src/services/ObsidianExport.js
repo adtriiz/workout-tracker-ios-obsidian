@@ -12,7 +12,8 @@ export const ObsidianExport = {
             const markdown = MarkdownGenerator.generate(workout, settings);
 
             const datePart = new Date(workout.startTime).toISOString().split('T')[0];
-            const noteName = `Workout_${datePart}`;
+            const sanitizedTemplateName = (workout.templateName || 'Workout').replace(/[^a-zA-Z0-9-_ ]/g, '');
+            const noteName = `${sanitizedTemplateName} - ${datePart}`;
 
             // 1. Attempt Obsidian Deep Link (Most Elegant)
             const obsidianUrl = `obsidian://new?name=${encodeURIComponent(noteName)}&content=${encodeURIComponent(markdown)}`;
