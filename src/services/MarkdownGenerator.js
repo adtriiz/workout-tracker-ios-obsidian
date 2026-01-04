@@ -34,12 +34,15 @@ export const MarkdownGenerator = {
     },
 
     calculateTotalVolume(workout) {
+        if (!workout || !workout.exercises) return 0;
         return workout.exercises.reduce((acc, ex) => {
-            return acc + ex.sets.reduce((sAcc, s) => sAcc + (s.weight * s.reps), 0);
+            if (!ex.sets) return acc;
+            return acc + ex.sets.reduce((sAcc, s) => sAcc + ((s.weight || 0) * (s.reps || 0)), 0);
         }, 0);
     },
 
     groupExercises(exercises) {
+        if (!exercises) return [];
         const groups = [];
         const processedSupersets = new Set();
 
@@ -59,11 +62,14 @@ export const MarkdownGenerator = {
     },
 
     formatExercise(exercise) {
-        let exMd = `#### ${exercise.name}\n`;
+        if (!exercise) return '';
+        let exMd = `#### ${exercise.name || 'Unknown Exercise'}\n`;
         exMd += `| Set | Weight | Reps |\n`;
         exMd += `| --- | --- | --- |\n`;
-        exercise.sets.forEach((set, i) => {
-            exMd += `| ${i + 1} | ${set.weight} | ${set.reps} |\n`;
+
+        const sets = exercise.sets || [];
+        sets.forEach((set, i) => {
+            exMd += `| ${i + 1} | ${set.weight || 0} | ${set.reps || 0} |\n`;
         });
         return exMd + `\n`;
     }
