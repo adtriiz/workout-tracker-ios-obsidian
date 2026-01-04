@@ -20,7 +20,10 @@ const TemplateManager = ({ templates, exercises, onSaveTemplate, onDeleteTemplat
                 </TouchableOpacity>
             </View>
 
-            <ScrollView contentContainerStyle={styles.content}>
+            <ScrollView
+                contentContainerStyle={styles.content}
+                keyboardDismissMode="on-drag"
+            >
                 {templates.map(t => (
                     <View key={t.id} style={styles.templateCard}>
                         <View style={{ flex: 1 }}>

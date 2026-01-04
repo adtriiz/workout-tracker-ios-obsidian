@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { StyleSheet, Text, View, ScrollView, TouchableOpacity, TextInput, Modal } from 'react-native';
+import { StyleSheet, Text, View, ScrollView, TouchableOpacity, TextInput, Modal, KeyboardAvoidingView, Platform, Keyboard, TouchableWithoutFeedback } from 'react-native';
 import { COLORS, SPACING, TYPOGRAPHY, BORDERS } from '../theme/tokens';
 import { X, Plus, Trash2, ArrowUp, ArrowDown, Save, Clock, Dumbbell, Hash, Link as LinkIcon, Unlink } from 'lucide-react-native';
 
@@ -141,192 +141,203 @@ const TemplateEditor = ({ exercises, onSave, onCancel, initialTemplate = null })
     };
 
     return (
-        <View style={styles.container}>
-            <View style={styles.header}>
-                <TouchableOpacity onPress={onCancel}>
-                    <X color={COLORS.text} size={24} />
-                </TouchableOpacity>
-                <Text style={styles.headerTitle}>{initialTemplate ? 'EDIT_PROTOCOL' : 'PROTOCOL_DESIGN'}</Text>
-                <TouchableOpacity onPress={handleSave}>
-                    <Save color={COLORS.primary} size={24} />
-                </TouchableOpacity>
-            </View>
-
-            <View style={styles.metaContainer}>
-                <Text style={styles.label}>PROTOCOL_NAME:</Text>
-                <TextInput
-                    style={styles.nameInput}
-                    value={name}
-                    onChangeText={setName}
-                    placeholder="Ex: PUSH_HEAVY_A"
-                    placeholderTextColor={COLORS.textMuted}
-                />
-
-                <View style={{ height: SPACING.md }} />
-
-                <Text style={styles.label}>WORKOUT_TYPE:</Text>
-                <TextInput
-                    style={styles.nameInput}
-                    value={workoutType}
-                    onChangeText={setWorkoutType}
-                    placeholder="Ex: Hypertrophy"
-                    placeholderTextColor={COLORS.textMuted}
-                />
-            </View>
-
-            <ScrollView contentContainerStyle={styles.content}>
-                <TouchableOpacity style={styles.addButton} onPress={() => setIsAddModalVisible(true)}>
-                    <Plus color={COLORS.text} size={20} />
-                    <Text style={styles.addButtonText}>APPEND_EXERCISE</Text>
-                </TouchableOpacity>
-
-                {templateExercises.map((ex, index) => {
-                    const isSupersetStart = ex.supersetId && templateExercises[index + 1]?.supersetId === ex.supersetId;
-                    const isSupersetEnd = ex.supersetId && templateExercises[index - 1]?.supersetId === ex.supersetId;
-
-                    return (
-                        <View key={ex.templateId} style={[
-                            styles.exerciseCard,
-                            (isSupersetStart || isSupersetEnd) && styles.supersetCard,
-                            isSupersetStart && styles.supersetCardTop,
-                            isSupersetEnd && styles.supersetCardBottom
-                        ]}>
-                            <View style={styles.cardHeader}>
-                                <View>
-                                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                                        <Text style={styles.exerciseName}>{ex.name.toUpperCase()}</Text>
-                                        {(isSupersetStart || isSupersetEnd) && (
-                                            <View style={styles.supersetBadge}>
-                                                <LinkIcon color={COLORS.background} size={10} />
-                                                <Text style={styles.supersetBadgeText}>SUPERSET</Text>
-                                            </View>
-                                        )}
-                                    </View>
-                                    <Text style={styles.exerciseSubtitle}>{ex.category}</Text>
-                                </View>
-                                <View style={styles.cardActions}>
-                                    {index < templateExercises.length - 1 && (
-                                        <TouchableOpacity
-                                            onPress={() => handleToggleSuperset(index)}
-                                            style={[styles.iconBtn, isSupersetStart && { backgroundColor: COLORS.primary }]}
-                                        >
-                                            {isSupersetStart ? (
-                                                <Unlink color={COLORS.background} size={18} />
-                                            ) : (
-                                                <LinkIcon color={COLORS.textMuted} size={18} />
-                                            )}
-                                        </TouchableOpacity>
-                                    )}
-                                    <TouchableOpacity onPress={() => handleMove(index, 'up')} style={styles.iconBtn}>
-                                        <ArrowUp color={COLORS.textMuted} size={18} />
-                                    </TouchableOpacity>
-                                    <TouchableOpacity onPress={() => handleMove(index, 'down')} style={styles.iconBtn}>
-                                        <ArrowDown color={COLORS.textMuted} size={18} />
-                                    </TouchableOpacity>
-                                    <TouchableOpacity onPress={() => handleRemoveExercise(index)} style={styles.iconBtn}>
-                                        <Trash2 color={COLORS.error} size={18} />
-                                    </TouchableOpacity>
-                                </View>
-                            </View>
-
-                            <View style={styles.setsHeader}>
-                                <Text style={[styles.colLabel, { flex: 0.5 }]}>SET</Text>
-                                <Text style={[styles.colLabel, { flex: 1 }]}>KG</Text>
-                                <Text style={[styles.colLabel, { flex: 1 }]}>REPS</Text>
-                                <Text style={[styles.colLabel, { flex: 1 }]}>REST(s)</Text>
-                                <View style={{ width: 24 }} />
-                            </View>
-
-                            {ex.sets.map((set, setIndex) => (
-                                <View key={setIndex} style={styles.setRow}>
-                                    <Text style={[styles.setNumber, { flex: 0.5 }]}>{setIndex + 1}</Text>
-                                    <TextInput
-                                        style={[styles.setInput, { flex: 1 }]}
-                                        value={set.weight.toString()}
-                                        onChangeText={(v) => handleUpdateSet(index, setIndex, 'weight', v)}
-                                        keyboardType="numeric"
-                                        placeholder="-"
-                                        placeholderTextColor={COLORS.textMuted}
-                                    />
-                                    <TextInput
-                                        style={[styles.setInput, { flex: 1 }]}
-                                        value={set.reps.toString()}
-                                        onChangeText={(v) => handleUpdateSet(index, setIndex, 'reps', v)}
-                                        keyboardType="numeric"
-                                        placeholder="-"
-                                        placeholderTextColor={COLORS.textMuted}
-                                    />
-                                    <TextInput
-                                        style={[styles.setInput, { flex: 1 }]}
-                                        value={set.rest.toString()}
-                                        onChangeText={(v) => handleUpdateSet(index, setIndex, 'rest', v)}
-                                        keyboardType="numeric"
-                                        placeholder="90"
-                                        placeholderTextColor={COLORS.textMuted}
-                                    />
-                                    <TouchableOpacity onPress={() => handleRemoveSet(index, setIndex)}>
-                                        <X color={COLORS.textMuted} size={16} />
-                                    </TouchableOpacity>
-                                </View>
-                            ))}
-
-                            <TouchableOpacity style={styles.addSetBtn} onPress={() => handleAddSet(index)}>
-                                <Plus color={COLORS.primary} size={14} />
-                                <Text style={styles.addSetText}>ADD_SET</Text>
-                            </TouchableOpacity>
-                        </View>
-                    )
-                })}
-            </ScrollView>
-
-            <Modal visible={isAddModalVisible} animationType="slide" transparent>
-                <View style={styles.modalOverlay}>
-                    <View style={styles.modalContent}>
-                        <View style={styles.modalHeader}>
-                            <Text style={styles.modalTitle}>SELECT_COMPONENT</Text>
-                            <TouchableOpacity onPress={() => setIsAddModalVisible(false)}>
-                                <X color={COLORS.text} size={24} />
-                            </TouchableOpacity>
-                        </View>
-
-                        <View style={styles.filterContainer}>
-                            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterContent}>
-                                {muscleGroups.map(group => (
-                                    <TouchableOpacity
-                                        key={group}
-                                        style={[
-                                            styles.filterChip,
-                                            selectedGroup === group && styles.filterChipSelected
-                                        ]}
-                                        onPress={() => setSelectedGroup(group)}
-                                    >
-                                        <Text style={[
-                                            styles.filterText,
-                                            selectedGroup === group && styles.filterTextSelected
-                                        ]}>
-                                            {group}
-                                        </Text>
-                                    </TouchableOpacity>
-                                ))}
-                            </ScrollView>
-                        </View>
-
-                        <ScrollView style={styles.exerciseList}>
-                            {filteredExercises.map(ex => (
-                                <TouchableOpacity
-                                    key={ex.id}
-                                    style={styles.selectExerciseItem}
-                                    onPress={() => handleAddExercise(ex)}
-                                >
-                                    <Text style={styles.selectExerciseName}>{ex.name.toUpperCase()}</Text>
-                                    <Text style={styles.selectExerciseCategory}>{ex.category}</Text>
-                                </TouchableOpacity>
-                            ))}
-                        </ScrollView>
+        <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            style={{ flex: 1 }}
+        >
+            <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+                <View style={styles.container}>
+                    <View style={styles.header}>
+                        <TouchableOpacity onPress={onCancel}>
+                            <X color={COLORS.text} size={24} />
+                        </TouchableOpacity>
+                        <Text style={styles.headerTitle}>{initialTemplate ? 'EDIT_PROTOCOL' : 'PROTOCOL_DESIGN'}</Text>
+                        <TouchableOpacity onPress={handleSave}>
+                            <Save color={COLORS.primary} size={24} />
+                        </TouchableOpacity>
                     </View>
+
+                    <View style={styles.metaContainer}>
+                        <Text style={styles.label}>PROTOCOL_NAME:</Text>
+                        <TextInput
+                            style={styles.nameInput}
+                            value={name}
+                            onChangeText={setName}
+                            placeholder="Ex: PUSH_HEAVY_A"
+                            placeholderTextColor={COLORS.textMuted}
+                        />
+
+                        <View style={{ height: SPACING.md }} />
+
+                        <Text style={styles.label}>WORKOUT_TYPE:</Text>
+                        <TextInput
+                            style={styles.nameInput}
+                            value={workoutType}
+                            onChangeText={setWorkoutType}
+                            placeholder="Ex: Hypertrophy"
+                            placeholderTextColor={COLORS.textMuted}
+                        />
+                    </View>
+
+                    <ScrollView
+                        contentContainerStyle={styles.content}
+                        keyboardDismissMode="on-drag"
+                        keyboardShouldPersistTaps="handled"
+                    >
+                        <TouchableOpacity style={styles.addButton} onPress={() => setIsAddModalVisible(true)}>
+                            <Plus color={COLORS.text} size={20} />
+                            <Text style={styles.addButtonText}>APPEND_EXERCISE</Text>
+                        </TouchableOpacity>
+
+                        {templateExercises.map((ex, index) => {
+                            const isSupersetStart = ex.supersetId && templateExercises[index + 1]?.supersetId === ex.supersetId;
+                            const isSupersetEnd = ex.supersetId && templateExercises[index - 1]?.supersetId === ex.supersetId;
+
+                            return (
+                                <View key={ex.templateId} style={[
+                                    styles.exerciseCard,
+                                    (isSupersetStart || isSupersetEnd) && styles.supersetCard,
+                                    isSupersetStart && styles.supersetCardTop,
+                                    isSupersetEnd && styles.supersetCardBottom
+                                ]}>
+                                    <View style={styles.cardHeader}>
+                                        <View>
+                                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                                                <Text style={styles.exerciseName}>{ex.name.toUpperCase()}</Text>
+                                                {(isSupersetStart || isSupersetEnd) && (
+                                                    <View style={styles.supersetBadge}>
+                                                        <LinkIcon color={COLORS.background} size={10} />
+                                                        <Text style={styles.supersetBadgeText}>SUPERSET</Text>
+                                                    </View>
+                                                )}
+                                            </View>
+                                            <Text style={styles.exerciseSubtitle}>{ex.category}</Text>
+                                        </View>
+                                        <View style={styles.cardActions}>
+                                            {index < templateExercises.length - 1 && (
+                                                <TouchableOpacity
+                                                    onPress={() => handleToggleSuperset(index)}
+                                                    style={[styles.iconBtn, isSupersetStart && { backgroundColor: COLORS.primary }]}
+                                                >
+                                                    {isSupersetStart ? (
+                                                        <Unlink color={COLORS.background} size={18} />
+                                                    ) : (
+                                                        <LinkIcon color={COLORS.textMuted} size={18} />
+                                                    )}
+                                                </TouchableOpacity>
+                                            )}
+                                            <TouchableOpacity onPress={() => handleMove(index, 'up')} style={styles.iconBtn}>
+                                                <ArrowUp color={COLORS.textMuted} size={18} />
+                                            </TouchableOpacity>
+                                            <TouchableOpacity onPress={() => handleMove(index, 'down')} style={styles.iconBtn}>
+                                                <ArrowDown color={COLORS.textMuted} size={18} />
+                                            </TouchableOpacity>
+                                            <TouchableOpacity onPress={() => handleRemoveExercise(index)} style={styles.iconBtn}>
+                                                <Trash2 color={COLORS.error} size={18} />
+                                            </TouchableOpacity>
+                                        </View>
+                                    </View>
+
+                                    <View style={styles.setsHeader}>
+                                        <Text style={[styles.colLabel, { flex: 0.5 }]}>SET</Text>
+                                        <Text style={[styles.colLabel, { flex: 1 }]}>KG</Text>
+                                        <Text style={[styles.colLabel, { flex: 1 }]}>REPS</Text>
+                                        <Text style={[styles.colLabel, { flex: 1 }]}>REST(s)</Text>
+                                        <View style={{ width: 24 }} />
+                                    </View>
+
+                                    {ex.sets.map((set, setIndex) => (
+                                        <View key={setIndex} style={styles.setRow}>
+                                            <Text style={[styles.setNumber, { flex: 0.5 }]}>{setIndex + 1}</Text>
+                                            <TextInput
+                                                style={[styles.setInput, { flex: 1 }]}
+                                                value={set.weight.toString()}
+                                                onChangeText={(v) => handleUpdateSet(index, setIndex, 'weight', v)}
+                                                keyboardType="numeric"
+                                                placeholder="-"
+                                                placeholderTextColor={COLORS.textMuted}
+                                            />
+                                            <TextInput
+                                                style={[styles.setInput, { flex: 1 }]}
+                                                value={set.reps.toString()}
+                                                onChangeText={(v) => handleUpdateSet(index, setIndex, 'reps', v)}
+                                                keyboardType="numeric"
+                                                placeholder="-"
+                                                placeholderTextColor={COLORS.textMuted}
+                                            />
+                                            <TextInput
+                                                style={[styles.setInput, { flex: 1 }]}
+                                                value={set.rest.toString()}
+                                                onChangeText={(v) => handleUpdateSet(index, setIndex, 'rest', v)}
+                                                keyboardType="numeric"
+                                                placeholder="90"
+                                                placeholderTextColor={COLORS.textMuted}
+                                            />
+                                            <TouchableOpacity onPress={() => handleRemoveSet(index, setIndex)}>
+                                                <X color={COLORS.textMuted} size={16} />
+                                            </TouchableOpacity>
+                                        </View>
+                                    ))}
+
+                                    <TouchableOpacity style={styles.addSetBtn} onPress={() => handleAddSet(index)}>
+                                        <Plus color={COLORS.primary} size={14} />
+                                        <Text style={styles.addSetText}>ADD_SET</Text>
+                                    </TouchableOpacity>
+                                </View>
+                            )
+                        })}
+                    </ScrollView>
+
+                    <Modal visible={isAddModalVisible} animationType="slide" transparent>
+                        <View style={styles.modalOverlay}>
+                            <View style={styles.modalContent}>
+                                <View style={styles.modalHeader}>
+                                    <Text style={styles.modalTitle}>SELECT_COMPONENT</Text>
+                                    <TouchableOpacity onPress={() => setIsAddModalVisible(false)}>
+                                        <X color={COLORS.text} size={24} />
+                                    </TouchableOpacity>
+                                </View>
+
+                                <View style={styles.filterContainer}>
+                                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterContent}>
+                                        {muscleGroups.map(group => (
+                                            <TouchableOpacity
+                                                key={group}
+                                                style={[
+                                                    styles.filterChip,
+                                                    selectedGroup === group && styles.filterChipSelected
+                                                ]}
+                                                onPress={() => setSelectedGroup(group)}
+                                            >
+                                                <Text style={[
+                                                    styles.filterText,
+                                                    selectedGroup === group && styles.filterTextSelected
+                                                ]}>
+                                                    {group}
+                                                </Text>
+                                            </TouchableOpacity>
+                                        ))}
+                                    </ScrollView>
+                                </View>
+
+                                <ScrollView style={styles.exerciseList}>
+                                    {filteredExercises.map(ex => (
+                                        <TouchableOpacity
+                                            key={ex.id}
+                                            style={styles.selectExerciseItem}
+                                            onPress={() => handleAddExercise(ex)}
+                                        >
+                                            <Text style={styles.selectExerciseName}>{ex.name.toUpperCase()}</Text>
+                                            <Text style={styles.selectExerciseCategory}>{ex.category}</Text>
+                                        </TouchableOpacity>
+                                    ))}
+                                </ScrollView>
+                            </View>
+                        </View>
+                    </Modal>
                 </View>
-            </Modal>
-        </View>
+            </TouchableWithoutFeedback>
+        </KeyboardAvoidingView>
     );
 };
 

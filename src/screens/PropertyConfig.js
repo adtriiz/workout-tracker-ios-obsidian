@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { StyleSheet, Text, View, ScrollView, TouchableOpacity, TextInput } from 'react-native';
+import { StyleSheet, Text, View, ScrollView, TouchableOpacity, TextInput, KeyboardAvoidingView, Platform, Keyboard, TouchableWithoutFeedback } from 'react-native';
 import { COLORS, SPACING, TYPOGRAPHY, BORDERS } from '../theme/tokens';
 import { X, Save, Hash } from 'lucide-react-native';
 
@@ -20,43 +20,54 @@ const PropertyConfig = ({ settings, onSave, onClose }) => {
     };
 
     return (
-        <View style={styles.container}>
-            <View style={styles.header}>
-                <TouchableOpacity onPress={onClose}>
-                    <X color={COLORS.text} size={24} />
-                </TouchableOpacity>
-                <Text style={styles.headerTitle}>METADATA_PROTO_MAPPING</Text>
-                <TouchableOpacity onPress={handleSave}>
-                    <Save color={COLORS.primary} size={24} />
-                </TouchableOpacity>
-            </View>
-
-            <ScrollView contentContainerStyle={styles.content}>
-                <Text style={styles.sectionTitle}>YAML_PROPERTY_KEYS</Text>
-
-                {Object.entries(config).map(([key, value]) => (
-                    <View key={key} style={styles.inputGroup}>
-                        <Text style={styles.label}>{key.toUpperCase()}:</Text>
-                        <TextInput
-                            style={styles.input}
-                            value={value}
-                            onChangeText={(v) => updateKey(key, v)}
-                        />
+        <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            style={{ flex: 1 }}
+        >
+            <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+                <View style={styles.container}>
+                    <View style={styles.header}>
+                        <TouchableOpacity onPress={onClose}>
+                            <X color={COLORS.text} size={24} />
+                        </TouchableOpacity>
+                        <Text style={styles.headerTitle}>METADATA_PROTO_MAPPING</Text>
+                        <TouchableOpacity onPress={handleSave}>
+                            <Save color={COLORS.primary} size={24} />
+                        </TouchableOpacity>
                     </View>
-                ))}
 
-                <Text style={styles.sectionTitle}>GLOBAL_TAGS</Text>
-                <View style={styles.inputGroup}>
-                    <Text style={styles.label}>COMMA_SEPARATED (#tag1, #tag2):</Text>
-                    <TextInput
-                        style={styles.input}
-                        value={tags}
-                        onChangeText={setTags}
-                        multiline
-                    />
+                    <ScrollView
+                        contentContainerStyle={styles.content}
+                        keyboardDismissMode="on-drag"
+                        keyboardShouldPersistTaps="handled"
+                    >
+                        <Text style={styles.sectionTitle}>YAML_PROPERTY_KEYS</Text>
+
+                        {Object.entries(config).map(([key, value]) => (
+                            <View key={key} style={styles.inputGroup}>
+                                <Text style={styles.label}>{key.toUpperCase()}:</Text>
+                                <TextInput
+                                    style={styles.input}
+                                    value={value}
+                                    onChangeText={(v) => updateKey(key, v)}
+                                />
+                            </View>
+                        ))}
+
+                        <Text style={styles.sectionTitle}>GLOBAL_TAGS</Text>
+                        <View style={styles.inputGroup}>
+                            <Text style={styles.label}>COMMA_SEPARATED (#tag1, #tag2):</Text>
+                            <TextInput
+                                style={styles.input}
+                                value={tags}
+                                onChangeText={setTags}
+                                multiline
+                            />
+                        </View>
+                    </ScrollView>
                 </View>
-            </ScrollView>
-        </View>
+            </TouchableWithoutFeedback>
+        </KeyboardAvoidingView>
     );
 };
 

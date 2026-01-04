@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, Text, View, ScrollView, TouchableOpacity, TextInput } from 'react-native';
+import { StyleSheet, Text, View, ScrollView, TouchableOpacity, TextInput, KeyboardAvoidingView, Platform, Keyboard, TouchableWithoutFeedback } from 'react-native';
 import { COLORS, SPACING, TYPOGRAPHY, BORDERS } from '../theme/tokens';
 import { Play, Pause, Square, Plus, Trash2, ChevronDown, ChevronUp, X } from 'lucide-react-native';
 
@@ -58,89 +58,100 @@ const LiveWorkout = ({ workout, onAddSet, onUpdateSet, onFinish, onAbort }) => {
     const groups = groupExercises(workout.exercises);
 
     return (
-        <View style={styles.container}>
-            <View style={styles.header}>
-                <TouchableOpacity onPress={onAbort} style={{ padding: 8 }}>
-                    <X color={COLORS.error} size={24} />
-                </TouchableOpacity>
-                <View>
-                    <Text style={styles.headerLabel}>SESSION_TIMER</Text>
-                    <Text style={styles.headerTimer}>{formatTime(timer)}</Text>
-                </View>
-                <View style={{ alignItems: 'center' }}>
-                    <Text style={styles.headerLabel}>REST_TIMER</Text>
-                    <Text style={[styles.headerTimer, { color: COLORS.success }]}>{formatTime(restTimer)}</Text>
-                </View>
-                <TouchableOpacity style={styles.finishButton} onPress={onFinish}>
-                    <Square color={COLORS.background} size={20} fill={COLORS.background} />
-                    <Text style={styles.finishButtonText}>FINISH</Text>
-                </TouchableOpacity>
-            </View>
+        <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            style={{ flex: 1 }}
+        >
+            <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+                <View style={styles.container}>
+                    <View style={styles.header}>
+                        <TouchableOpacity onPress={onAbort} style={{ padding: 8 }}>
+                            <X color={COLORS.error} size={24} />
+                        </TouchableOpacity>
+                        <View>
+                            <Text style={styles.headerLabel}>SESSION_TIMER</Text>
+                            <Text style={styles.headerTimer}>{formatTime(timer)}</Text>
+                        </View>
+                        <View style={{ alignItems: 'center' }}>
+                            <Text style={styles.headerLabel}>REST_TIMER</Text>
+                            <Text style={[styles.headerTimer, { color: COLORS.success }]}>{formatTime(restTimer)}</Text>
+                        </View>
+                        <TouchableOpacity style={styles.finishButton} onPress={onFinish}>
+                            <Square color={COLORS.background} size={20} fill={COLORS.background} />
+                            <Text style={styles.finishButtonText}>FINISH</Text>
+                        </TouchableOpacity>
+                    </View>
 
-            <ScrollView contentContainerStyle={styles.content}>
-                {groups.map((group) => (
-                    <View key={group.id} style={group.type === 'superset' ? styles.supersetContainer : null}>
-                        {group.type === 'superset' && (
-                            <View style={styles.supersetTag}>
-                                <Text style={styles.supersetTagText}>SUPERSET_GROUP</Text>
-                            </View>
-                        )}
-
-                        {(group.type === 'superset' ? group.exercises : [group.exercise]).map((exercise) => (
-                            <View key={exercise.instanceId} style={styles.exerciseCard}>
-                                <View style={styles.exerciseHeader}>
-                                    <Text style={styles.exerciseTitle}>{exercise.name.toUpperCase()}</Text>
-                                    <Text style={styles.exerciseCategory}>{exercise.category || 'GENERAL'}</Text>
-                                </View>
-
-                                <View style={styles.setGrid}>
-                                    <View style={styles.setRowHeader}>
-                                        <Text style={[styles.setLabel, { flex: 0.5 }]}>SET</Text>
-                                        <Text style={[styles.setLabel, { flex: 1 }]}>WEIGHT</Text>
-                                        <Text style={[styles.setLabel, { flex: 1 }]}>REPS</Text>
-                                        <Text style={[styles.setLabel, { flex: 0.5 }]}></Text>
+                    <ScrollView
+                        contentContainerStyle={styles.content}
+                        keyboardDismissMode="on-drag"
+                        keyboardShouldPersistTaps="handled"
+                    >
+                        {groups.map((group) => (
+                            <View key={group.id} style={group.type === 'superset' ? styles.supersetContainer : null}>
+                                {group.type === 'superset' && (
+                                    <View style={styles.supersetTag}>
+                                        <Text style={styles.supersetTagText}>SUPERSET_GROUP</Text>
                                     </View>
+                                )}
 
-                                    {exercise.sets.map((set, setIndex) => (
-                                        <View key={set.id} style={[styles.setRow, set.completed && styles.setRowCompleted]}>
-                                            <Text style={styles.setNumber}>{setIndex + 1}</Text>
-
-                                            <TextInput
-                                                style={styles.setInput}
-                                                keyboardType="numeric"
-                                                value={set.weight.toString()}
-                                                onChangeText={(val) => onUpdateSet(exercise.instanceId, set.id, { weight: parseFloat(val) || 0 })}
-                                            />
-
-                                            <TextInput
-                                                style={styles.setInput}
-                                                keyboardType="numeric"
-                                                value={set.reps.toString()}
-                                                onChangeText={(val) => onUpdateSet(exercise.instanceId, set.id, { reps: parseInt(val) || 0 })}
-                                            />
-
-                                            <TouchableOpacity
-                                                style={[styles.checkButton, set.completed && styles.checkButtonActive]}
-                                                onPress={() => handleToggleSet(exercise.instanceId, set.id, set.completed)}
-                                            >
-                                                <Text style={[styles.checkButtonText, set.completed && styles.checkButtonTextActive]}>
-                                                    {set.completed ? 'DONE!' : 'LOG'}
-                                                </Text>
-                                            </TouchableOpacity>
+                                {(group.type === 'superset' ? group.exercises : [group.exercise]).map((exercise) => (
+                                    <View key={exercise.instanceId} style={styles.exerciseCard}>
+                                        <View style={styles.exerciseHeader}>
+                                            <Text style={styles.exerciseTitle}>{exercise.name.toUpperCase()}</Text>
+                                            <Text style={styles.exerciseCategory}>{exercise.category || 'GENERAL'}</Text>
                                         </View>
-                                    ))}
-                                </View>
 
-                                <TouchableOpacity style={styles.addSetButton} onPress={() => onAddSet(exercise.instanceId)}>
-                                    <Plus color={COLORS.primary} size={16} />
-                                    <Text style={styles.addSetButtonText}>ADD_SET</Text>
-                                </TouchableOpacity>
+                                        <View style={styles.setGrid}>
+                                            <View style={styles.setRowHeader}>
+                                                <Text style={[styles.setLabel, { flex: 0.5 }]}>SET</Text>
+                                                <Text style={[styles.setLabel, { flex: 1 }]}>WEIGHT</Text>
+                                                <Text style={[styles.setLabel, { flex: 1 }]}>REPS</Text>
+                                                <Text style={[styles.setLabel, { flex: 0.5 }]}></Text>
+                                            </View>
+
+                                            {exercise.sets.map((set, setIndex) => (
+                                                <View key={set.id} style={[styles.setRow, set.completed && styles.setRowCompleted]}>
+                                                    <Text style={styles.setNumber}>{setIndex + 1}</Text>
+
+                                                    <TextInput
+                                                        style={styles.setInput}
+                                                        keyboardType="numeric"
+                                                        value={set.weight.toString()}
+                                                        onChangeText={(val) => onUpdateSet(exercise.instanceId, set.id, { weight: parseFloat(val) || 0 })}
+                                                    />
+
+                                                    <TextInput
+                                                        style={styles.setInput}
+                                                        keyboardType="numeric"
+                                                        value={set.reps.toString()}
+                                                        onChangeText={(val) => onUpdateSet(exercise.instanceId, set.id, { reps: parseInt(val) || 0 })}
+                                                    />
+
+                                                    <TouchableOpacity
+                                                        style={[styles.checkButton, set.completed && styles.checkButtonActive]}
+                                                        onPress={() => handleToggleSet(exercise.instanceId, set.id, set.completed)}
+                                                    >
+                                                        <Text style={[styles.checkButtonText, set.completed && styles.checkButtonTextActive]}>
+                                                            {set.completed ? 'DONE!' : 'LOG'}
+                                                        </Text>
+                                                    </TouchableOpacity>
+                                                </View>
+                                            ))}
+                                        </View>
+
+                                        <TouchableOpacity style={styles.addSetButton} onPress={() => onAddSet(exercise.instanceId)}>
+                                            <Plus color={COLORS.primary} size={16} />
+                                            <Text style={styles.addSetButtonText}>ADD_SET</Text>
+                                        </TouchableOpacity>
+                                    </View>
+                                ))}
                             </View>
                         ))}
-                    </View>
-                ))}
-            </ScrollView>
-        </View>
+                    </ScrollView>
+                </View>
+            </TouchableWithoutFeedback>
+        </KeyboardAvoidingView>
     );
 };
 
@@ -250,17 +261,7 @@ const styles = StyleSheet.create({
     },
     setRowCompleted: {
         borderColor: COLORS.success,
-        backgroundColor: COLORS.success + '20', // Add some transparency if possible, otherwise just use success color maybe? 
-        // Wait, React Native doesn't support hex + alpha string concatenation if it's already a var, unless it's a hex string.
-        // Assuming COLORS.success is a hex string.
-        // Let's safe bet: just border and maybe assume background color change isn't strictly needed if border is clear, 
-        // BUT user said "turns green". 
-        // Let's try to use a style that definitely looks green.
-        backgroundColor: '#00F0FF20', // Fallback or assume custom. 
-        // Actually, let's look at tokens.js. I'll stick to a safe green border for now and maybe tint if I can.
-        // Re-reading user request: "turns green".
-        // I will set borderColor to success and maybe backgroundColor to a hardcoded transparent green for now since I can't guarantee token format.
-        backgroundColor: 'rgba(0, 255, 0, 0.1)',
+        backgroundColor: 'rgba(68, 255, 68, 0.1)', // COLORS.success with transparency
     },
     setNumber: {
         flex: 0.5,

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { StyleSheet, Text, View, ScrollView, TouchableOpacity, TextInput, Modal } from 'react-native';
+import { StyleSheet, Text, View, ScrollView, TouchableOpacity, TextInput, Modal, KeyboardAvoidingView, Platform, TouchableWithoutFeedback, Keyboard } from 'react-native';
 import { COLORS, SPACING, TYPOGRAPHY, BORDERS } from '../theme/tokens';
 import { Plus, X, Search, Dumbbell, Trash2 } from 'lucide-react-native';
 
@@ -72,113 +72,131 @@ const ExerciseManager = ({ exercises, muscleGroups, onAddExercise, onDeleteExerc
                 </ScrollView>
             </View>
 
-            <View style={styles.searchBar}>
-                <Search color={COLORS.textMuted} size={18} />
-                <TextInput
-                    style={styles.searchInput}
-                    placeholder="SEARCH_BUFFER..."
-                    placeholderTextColor={COLORS.textMuted}
-                />
+            <View style={{ flex: 1 }}>
+                <View style={styles.searchBar}>
+                    <Search color={COLORS.textMuted} size={18} />
+                    <TextInput
+                        style={styles.searchInput}
+                        placeholder="SEARCH_BUFFER..."
+                        placeholderTextColor={COLORS.textMuted}
+                    />
+                </View>
+
+                <ScrollView
+                    contentContainerStyle={styles.content}
+                    keyboardDismissMode="on-drag"
+                    keyboardShouldPersistTaps="handled"
+                >
+                    {filteredExercises.length === 0 ? (
+                        <View style={styles.emptyContainer}>
+                            <Dumbbell color={COLORS.border} size={48} />
+                            <Text style={styles.emptyText}>DATABASE_EMPTY</Text>
+                        </View>
+                    ) : (
+                        filteredExercises.map((ex) => (
+                            <View key={ex.id} style={styles.exerciseItem}>
+                                <View style={{ flex: 1, paddingRight: SPACING.md }}>
+                                    <Text style={styles.exerciseName}>{ex.name.toUpperCase()}</Text>
+                                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                                        <Text style={styles.exerciseCategory}>{ex.category}</Text>
+                                        {ex.notes && <Text style={styles.exerciseNotes}>• {ex.notes}</Text>}
+                                    </View>
+                                </View>
+                                <TouchableOpacity onPress={() => onDeleteExercise(ex.id)}>
+                                    <Trash2 color={COLORS.error} size={20} />
+                                </TouchableOpacity>
+                            </View>
+                        ))
+                    )}
+                </ScrollView>
             </View>
 
-            <ScrollView contentContainerStyle={styles.content}>
-                {filteredExercises.length === 0 ? (
-                    <View style={styles.emptyContainer}>
-                        <Dumbbell color={COLORS.border} size={48} />
-                        <Text style={styles.emptyText}>DATABASE_EMPTY</Text>
-                    </View>
-                ) : (
-                    filteredExercises.map((ex) => (
-                        <View key={ex.id} style={styles.exerciseItem}>
-                            <View style={{ flex: 1, paddingRight: SPACING.md }}>
-                                <Text style={styles.exerciseName}>{ex.name.toUpperCase()}</Text>
-                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                                    <Text style={styles.exerciseCategory}>{ex.category}</Text>
-                                    {ex.notes && <Text style={styles.exerciseNotes}>• {ex.notes}</Text>}
-                                </View>
-                            </View>
-                            <TouchableOpacity onPress={() => onDeleteExercise(ex.id)}>
-                                <Trash2 color={COLORS.error} size={20} />
-                            </TouchableOpacity>
-                        </View>
-                    ))
-                )}
-            </ScrollView>
-
             <Modal visible={isModalVisible} animationType="fade" transparent>
-                <View style={styles.modalOverlay}>
-                    <View style={styles.modalContent}>
-                        <Text style={styles.modalTitle}>NEW_ENTRY_REGISTRATION</Text>
+                <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+                    <View style={styles.modalOverlay}>
+                        <KeyboardAvoidingView
+                            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                            style={{ width: '100%' }}
+                        >
+                            <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+                                <View style={styles.modalContent}>
+                                    <Text style={styles.modalTitle}>NEW_ENTRY_REGISTRATION</Text>
 
-                        <View style={styles.inputGroup}>
-                            <Text style={styles.label}>IDENTIFIER:</Text>
-                            <TextInput
-                                style={styles.input}
-                                value={name}
-                                onChangeText={setName}
-                                placeholder="Ex: Bench Press"
-                                placeholderTextColor={COLORS.textMuted}
-                            />
-                        </View>
+                                    <View style={styles.inputGroup}>
+                                        <Text style={styles.label}>IDENTIFIER:</Text>
+                                        <TextInput
+                                            style={styles.input}
+                                            value={name}
+                                            onChangeText={setName}
+                                            placeholder="Ex: Bench Press"
+                                            placeholderTextColor={COLORS.textMuted}
+                                        />
+                                    </View>
 
-                        <View style={styles.inputGroup}>
-                            <Text style={styles.label}>MUSCLE_GROUP:</Text>
-                            <View>
-                                <ScrollView
-                                    horizontal
-                                    showsHorizontalScrollIndicator={false}
-                                    contentContainerStyle={{ gap: 8, paddingVertical: 4 }}
-                                    style={{ marginBottom: 8, flexGrow: 0 }}
-                                >
-                                    {muscleGroups.filter(g => g !== 'ALL').map(group => (
-                                        <TouchableOpacity
-                                            key={group}
-                                            style={[styles.filterChip, category === group && styles.filterChipSelected]}
-                                            onPress={() => setCategory(group)}
-                                        >
-                                            <Text style={[styles.filterText, category === group && styles.filterTextSelected]}>{group}</Text>
+                                    <View style={styles.inputGroup}>
+                                        <Text style={styles.label}>MUSCLE_GROUP:</Text>
+                                        <View>
+                                            <ScrollView
+                                                horizontal
+                                                showsHorizontalScrollIndicator={false}
+                                                contentContainerStyle={{ gap: 8, paddingVertical: 4 }}
+                                                style={{ marginBottom: 8, flexGrow: 0 }}
+                                            >
+                                                {muscleGroups.filter(g => g !== 'ALL').map(group => (
+                                                    <TouchableOpacity
+                                                        key={group}
+                                                        style={[styles.filterChip, category === group && styles.filterChipSelected]}
+                                                        onPress={() => {
+                                                            setCategory(group);
+                                                            Keyboard.dismiss();
+                                                        }}
+                                                    >
+                                                        <Text style={[styles.filterText, category === group && styles.filterTextSelected]}>{group}</Text>
+                                                    </TouchableOpacity>
+                                                ))}
+                                                <TouchableOpacity
+                                                    style={[styles.filterChip, !muscleGroups.includes(category) && category !== '' && styles.filterChipSelected]}
+                                                    onPress={() => setCategory('')}
+                                                >
+                                                    <Text style={[styles.filterText, !muscleGroups.includes(category) && category !== '' && styles.filterTextSelected]}>+ CUSTOM</Text>
+                                                </TouchableOpacity>
+                                            </ScrollView>
+
+                                            <TextInput
+                                                style={styles.input}
+                                                value={category}
+                                                onChangeText={setCategory}
+                                                placeholder="Select or type new..."
+                                                placeholderTextColor={COLORS.textMuted}
+                                            />
+                                        </View>
+                                    </View>
+
+                                    <View style={styles.inputGroup}>
+                                        <Text style={styles.label}>NOTES (OPTIONAL):</Text>
+                                        <TextInput
+                                            style={[styles.input, { height: 80, textAlignVertical: 'top' }]}
+                                            value={notes}
+                                            onChangeText={setNotes}
+                                            placeholder="Technique cues, machine settings..."
+                                            placeholderTextColor={COLORS.textMuted}
+                                            multiline
+                                        />
+                                    </View>
+
+                                    <View style={styles.modalActions}>
+                                        <TouchableOpacity style={styles.cancelButton} onPress={() => setIsModalVisible(false)}>
+                                            <Text style={styles.cancelText}>ABORT</Text>
                                         </TouchableOpacity>
-                                    ))}
-                                    <TouchableOpacity
-                                        style={[styles.filterChip, !muscleGroups.includes(category) && category !== '' && styles.filterChipSelected]}
-                                        onPress={() => setCategory('')}
-                                    >
-                                        <Text style={[styles.filterText, !muscleGroups.includes(category) && category !== '' && styles.filterTextSelected]}>+ CUSTOM</Text>
-                                    </TouchableOpacity>
-                                </ScrollView>
-
-                                <TextInput
-                                    style={styles.input}
-                                    value={category}
-                                    onChangeText={setCategory}
-                                    placeholder="Select or type new..."
-                                    placeholderTextColor={COLORS.textMuted}
-                                />
-                            </View>
-                        </View>
-
-                        <View style={styles.inputGroup}>
-                            <Text style={styles.label}>NOTES (OPTIONAL):</Text>
-                            <TextInput
-                                style={[styles.input, { height: 80, textAlignVertical: 'top' }]}
-                                value={notes}
-                                onChangeText={setNotes}
-                                placeholder="Technique cues, machine settings..."
-                                placeholderTextColor={COLORS.textMuted}
-                                multiline
-                            />
-                        </View>
-
-                        <View style={styles.modalActions}>
-                            <TouchableOpacity style={styles.cancelButton} onPress={() => setIsModalVisible(false)}>
-                                <Text style={styles.cancelText}>ABORT</Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
-                                <Text style={styles.saveText}>COMMIT</Text>
-                            </TouchableOpacity>
-                        </View>
+                                        <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
+                                            <Text style={styles.saveText}>COMMIT</Text>
+                                        </TouchableOpacity>
+                                    </View>
+                                </View>
+                            </TouchableWithoutFeedback>
+                        </KeyboardAvoidingView>
                     </View>
-                </View>
+                </TouchableWithoutFeedback>
             </Modal>
         </View>
     );
