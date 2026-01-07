@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { StyleSheet, Text, View, ScrollView, TouchableOpacity, TextInput, Modal } from 'react-native';
 import { COLORS, SPACING, TYPOGRAPHY, BORDERS } from '../theme/tokens';
-import { X, Play, Settings2, Edit2, Link as LinkIcon } from 'lucide-react-native';
+import { X, Play, Settings2, Edit2, Link as LinkIcon, ArrowUp, ArrowDown } from 'lucide-react-native';
 import { WorkoutFactory } from '../logic/WorkoutFactory';
 import TemplateEditor from './TemplateEditor';
 
-const WorkoutSetup = ({ template, onStart, onClose }) => {
+const WorkoutSetup = ({ template, exercises: allExercises, onStart, onClose }) => {
     const [workoutConfig, setWorkoutConfig] = useState(null);
     const [isEditing, setIsEditing] = useState(false);
 
@@ -16,11 +16,45 @@ const WorkoutSetup = ({ template, onStart, onClose }) => {
     }, [template]);
 
     const handleSaveEdit = (updatedTemplate) => {
-        // Updated template comes back, we need to regenerate the workout config
-        // Note: We might lose entered weights if we just regenerate, but since this is pre-start, it is fine.
-        const draft = WorkoutFactory.createFromTemplate(updatedTemplate);
-        setWorkoutConfig(draft);
+        setWorkoutConfig(prev => ({
+            ...prev,
+            exercises: updatedTemplate.exercises
+        }));
         setIsEditing(false);
+    };
+
+    const handleUpdateSet = (exerciseInstanceId, setIndex, field, value) => {
+        setWorkoutConfig(prev => ({
+            ...prev,
+            exercises: prev.exercises.map(ex =>
+                ex.instanceId === exerciseInstanceId
+                    ? {
+                        ...ex,
+                        sets: ex.sets.map((s, i) =>
+                            i === setIndex ? { ...s, [field]: value } : s
+                        )
+                    }
+                    : ex
+            )
+        }));
+    };
+
+    const handleUpdateEquipment = (exerciseInstanceId, equipment) => {
+        setWorkoutConfig(prev => ({
+            ...prev,
+            exercises: prev.exercises.map(ex =>
+                ex.instanceId === exerciseInstanceId ? { ...ex, activeEquipment: equipment } : ex
+            )
+        }));
+    };
+
+    const handleMove = (index, direction) => {
+        const newExercises = [...workoutConfig.exercises];
+        const targetIndex = direction === 'up' ? index - 1 : index + 1;
+        if (targetIndex >= 0 && targetIndex < newExercises.length) {
+            [newExercises[index], newExercises[targetIndex]] = [newExercises[targetIndex], newExercises[index]];
+            setWorkoutConfig(prev => ({ ...prev, exercises: newExercises }));
+        }
     };
 
     const groupExercises = (exercises) => {
@@ -77,22 +111,80 @@ const WorkoutSetup = ({ template, onStart, onClose }) => {
                                 </View>
                             )}
 
-                            {(group.type === 'superset' ? group.exercises : [group.exercise]).map((ex) => (
-                                <View key={ex.instanceId} style={styles.exerciseCard}>
-                                    <Text style={styles.exerciseName}>{ex.name.toUpperCase()}</Text>
-                                    <View style={styles.statsContainer}>
-                                        {ex.sets.map((set, i) => (
-                                            <View key={i} style={styles.statRow}>
-                                                <Text style={styles.statSet}>SET {i + 1}</Text>
-                                                <Text style={styles.statDetails}>
-                                                    {set.reps || '-'} REPS @ {set.weight || '-'} KG
-                                                </Text>
-                                                {set.rest && <Text style={styles.statRest}>{set.rest}s REST</Text>}
+                            {(group.type === 'superset' ? group.exercises : [group.exercise]).map((ex, exIdxInGroup) => {
+                                const globalExIndex = workoutConfig.exercises.findIndex(e => e.instanceId === ex.instanceId);
+                                return (
+                                    <View key={ex.instanceId} style={styles.exerciseCard}>
+                                        <View style={styles.cardHeader}>
+                                            <View style={{ flex: 1 }}>
+                                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                                                    <Text style={styles.exerciseName}>{ex.name.toUpperCase()}</Text>
+                                                    {ex.exerciseType === 'bodyweight' && (
+                                                        <View style={[styles.badge, styles.badgeBW]}>
+                                                            <Text style={styles.badgeText}>BW</Text>
+                                                        </View>
+                                                    )}
+                                                    {ex.activeEquipment && (
+                                                        <View style={[styles.badge, styles.badgeEquipment]}>
+                                                            <Text style={styles.badgeText}>{ex.activeEquipment}</Text>
+                                                        </View>
+                                                    )}
+                                                </View>
+                                                <Text style={styles.exerciseSubtitle}>{ex.category}</Text>
                                             </View>
-                                        ))}
+                                            <View style={styles.headerActions}>
+                                                <TouchableOpacity onPress={() => handleMove(globalExIndex, 'up')} disabled={globalExIndex === 0}>
+                                                    <ArrowUp color={globalExIndex === 0 ? COLORS.border : COLORS.textMuted} size={16} />
+                                                </TouchableOpacity>
+                                                <TouchableOpacity onPress={() => handleMove(globalExIndex, 'down')} disabled={globalExIndex === workoutConfig.exercises.length - 1}>
+                                                    <ArrowDown color={globalExIndex === workoutConfig.exercises.length - 1 ? COLORS.border : COLORS.textMuted} size={16} />
+                                                </TouchableOpacity>
+                                            </View>
+                                        </View>
+
+                                        {ex.exerciseType === 'weighted' && ex.equipmentOptions && ex.equipmentOptions.length > 0 && (
+                                            <View style={styles.equipmentToggle}>
+                                                {ex.equipmentOptions.map(eq => (
+                                                    <TouchableOpacity
+                                                        key={eq}
+                                                        style={[styles.eqChip, ex.activeEquipment === eq && styles.eqChipActive]}
+                                                        onPress={() => handleUpdateEquipment(ex.instanceId, eq)}
+                                                    >
+                                                        <Text style={[styles.eqChipText, ex.activeEquipment === eq && styles.eqChipTextActive]}>{eq}</Text>
+                                                    </TouchableOpacity>
+                                                ))}
+                                            </View>
+                                        )}
+
+                                        <View style={styles.statsContainer}>
+                                            <View style={styles.statHeader}>
+                                                <Text style={[styles.statLabel, { width: 40 }]}>SET</Text>
+                                                <Text style={[styles.statLabel, { flex: 1 }]}>{ex.exerciseType === 'bodyweight' ? '+ KG' : 'KG'}</Text>
+                                                <Text style={[styles.statLabel, { flex: 1 }]}>REPS</Text>
+                                                <Text style={[styles.statLabel, { width: 50 }]}>REST</Text>
+                                            </View>
+                                            {ex.sets.map((set, i) => (
+                                                <View key={i} style={styles.statRow}>
+                                                    <Text style={styles.statSet}>{i + 1}</Text>
+                                                    <TextInput
+                                                        style={styles.statInput}
+                                                        keyboardType="numeric"
+                                                        value={set.weight.toString()}
+                                                        onChangeText={(v) => handleUpdateSet(ex.instanceId, i, 'weight', parseFloat(v) || 0)}
+                                                    />
+                                                    <TextInput
+                                                        style={styles.statInput}
+                                                        keyboardType="numeric"
+                                                        value={set.reps.toString()}
+                                                        onChangeText={(v) => handleUpdateSet(ex.instanceId, i, 'reps', parseInt(v) || 0)}
+                                                    />
+                                                    <Text style={styles.statRest}>{set.rest}s</Text>
+                                                </View>
+                                            ))}
+                                        </View>
                                     </View>
-                                </View>
-                            ))}
+                                );
+                            })}
                         </View>
                     ))
                 )}
@@ -100,14 +192,8 @@ const WorkoutSetup = ({ template, onStart, onClose }) => {
 
             <Modal visible={isEditing} animationType="slide">
                 <TemplateEditor
-                    initialTemplate={{ ...template, exercises: workoutConfig.exercises }} // Pass current state as template
-                    exercises={[]} // We might need the full exercise list here if we want to add new ones, but for now let's assume we just edit existing structure or we need to pass the list. passing [] might break adding.
-                    // Actually, WorkoutSetup doesn't have the full exercise list in props. 
-                    // We might need to fetch it or pass it. 
-                    // For now, let's just pass [] and accept we can't add NEW exercises from database, only reorder/delete/edit sets.
-                    // Wait, user might want to add exercises. 
-                    // The prompt didn't strictly say "add new exercises" but "edit button".
-                    // Let's rely on what we have.
+                    initialTemplate={{ ...template, exercises: workoutConfig.exercises }}
+                    exercises={allExercises}
                     onSave={handleSaveEdit}
                     onCancel={() => setIsEditing(false)}
                 />
@@ -181,33 +267,112 @@ const styles = StyleSheet.create({
         color: COLORS.text,
         fontFamily: TYPOGRAPHY.familyMonoBold,
         fontSize: TYPOGRAPHY.size.md,
+    },
+    exerciseSubtitle: {
+        color: COLORS.textMuted,
+        fontFamily: TYPOGRAPHY.familyMono,
+        fontSize: 10,
+        marginTop: 2,
+    },
+    cardHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
         marginBottom: SPACING.md,
     },
+    headerActions: {
+        flexDirection: 'row',
+        gap: SPACING.sm,
+    },
+    badge: {
+        paddingHorizontal: 6,
+        paddingVertical: 2,
+        borderRadius: 4,
+    },
+    badgeBW: {
+        backgroundColor: COLORS.success,
+    },
+    badgeEquipment: {
+        backgroundColor: COLORS.primary,
+    },
+    badgeText: {
+        color: COLORS.background,
+        fontFamily: TYPOGRAPHY.familyMonoBold,
+        fontSize: 8,
+    },
+    equipmentToggle: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: 6,
+        marginBottom: SPACING.md,
+        paddingBottom: SPACING.sm,
+        borderBottomWidth: StyleSheet.hairlineWidth,
+        borderBottomColor: COLORS.border,
+    },
+    eqChip: {
+        paddingHorizontal: 8,
+        paddingVertical: 4,
+        borderWidth: BORDERS.thin,
+        borderColor: COLORS.border,
+        borderRadius: 4,
+    },
+    eqChipActive: {
+        backgroundColor: COLORS.primary,
+        borderColor: COLORS.primary,
+    },
+    eqChipText: {
+        color: COLORS.textMuted,
+        fontFamily: TYPOGRAPHY.familyMono,
+        fontSize: 9,
+    },
+    eqChipTextActive: {
+        color: COLORS.background,
+        fontFamily: TYPOGRAPHY.familyMonoBold,
+    },
+    statHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: SPACING.xs,
+        marginBottom: 4,
+    },
+    statLabel: {
+        color: COLORS.textMuted,
+        fontFamily: TYPOGRAPHY.familyMono,
+        fontSize: 8,
+        textAlign: 'center',
+    },
     statsContainer: {
-        marginTop: SPACING.xs,
-        gap: 8,
+        gap: 4,
     },
     statRow: {
         flexDirection: 'row',
         alignItems: 'center',
-        paddingHorizontal: SPACING.xs,
+        gap: 8,
     },
     statSet: {
         color: COLORS.primary,
         fontFamily: TYPOGRAPHY.familyMonoBold,
         fontSize: 10,
-        width: 60,
+        width: 40,
+        textAlign: 'center',
     },
-    statDetails: {
+    statInput: {
+        flex: 1,
+        backgroundColor: COLORS.surfaceElevated,
         color: COLORS.text,
         fontFamily: TYPOGRAPHY.familyMono,
         fontSize: 12,
-        flex: 1,
+        padding: 4,
+        borderWidth: StyleSheet.hairlineWidth,
+        borderColor: COLORS.border,
+        textAlign: 'center',
     },
     statRest: {
         color: COLORS.textMuted,
         fontFamily: TYPOGRAPHY.familyMono,
         fontSize: 10,
+        width: 50,
+        textAlign: 'right',
     },
     emptyText: {
         color: COLORS.textMuted,

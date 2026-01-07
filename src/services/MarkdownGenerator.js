@@ -11,14 +11,14 @@ export const MarkdownGenerator = {
         markdown += `${yamlMapping.date}: ${dateStr}\n`;
         markdown += `${yamlMapping.type}: ${workoutType}\n`;
         markdown += `${yamlMapping.duration}: ${workout.duration} min\n`;
-        markdown += `${yamlMapping.volume}: ${this.calculateTotalVolume(workout)}\n`;
+        markdown += `${yamlMapping.volume}: ${this.calculateTotalVolume(workout, settings)}\n`;
 
         // Per-exercise volume properties
         if (workout.exercises) {
             const volumeMap = {};
             workout.exercises.forEach(ex => {
                 if (!ex.name) return;
-                const vol = this.calculateExerciseVolume(ex);
+                const vol = this.calculateExerciseVolume(ex, settings);
                 if (vol > 0) {
                     const key = `${ex.name.replace(/[^a-zA-Z0-9]/g, '_')}_volume`;
                     if (volumeMap[key]) {
@@ -57,17 +57,34 @@ export const MarkdownGenerator = {
         return markdown;
     },
 
-    calculateTotalVolume(workout) {
+    calculateTotalVolume(workout, settings) {
         if (!workout || !workout.exercises) return 0;
-        return workout.exercises.reduce((acc, ex) => acc + this.calculateExerciseVolume(ex), 0);
+        return workout.exercises.reduce((acc, ex) => acc + this.calculateExerciseVolume(ex, settings), 0);
     },
 
-    calculateExerciseVolume(exercise) {
+    calculateExerciseVolume(exercise, settings) {
         if (!exercise || !exercise.sets) return 0;
+        const userBW = parseFloat(settings?.userBodyweight) || 0;
+        const isBW = exercise.exerciseType === 'bodyweight';
+
         return exercise.sets.reduce((acc, set) => {
-            const weight = parseFloat(set.weight) || 0;
+            const addedWeight = parseFloat(set.weight) || 0;
             const reps = parseFloat(set.reps) || 0;
-            return acc + (weight * reps);
+
+            if (isBW) {
+                // Volume = (User BW + Added Weight) * Reps
+                // If userBW is 0 and addedWeight is 0, it counts as reps only (simplified to reps if you want, 
+                // but let's stick to the math: (0+0)*reps = 0. 
+                // Plan said: "If not set, bodyweight exercises count reps only."
+                // To accurately reflect "reps only" in the volume number, 
+                // we'd have to treat reps as volume.
+                if (userBW === 0 && addedWeight === 0) {
+                    return acc + reps;
+                }
+                return acc + ((userBW + addedWeight) * reps);
+            }
+
+            return acc + (addedWeight * reps);
         }, 0);
     },
 
@@ -93,13 +110,19 @@ export const MarkdownGenerator = {
 
     formatExercise(exercise) {
         if (!exercise) return '';
-        let exMd = `#### ${exercise.name || 'Unknown Exercise'}\n`;
+        const eqInfo = exercise.activeEquipment ? ` (${exercise.activeEquipment})` : '';
+        const bwInfo = exercise.exerciseType === 'bodyweight' ? ' [BW]' : '';
+        let exMd = `#### ${exercise.name || 'Unknown Exercise'}${bwInfo}${eqInfo}\n`;
         exMd += `| Set | Weight | Reps |\n`;
         exMd += `| --- | --- | --- |\n`;
 
         const sets = exercise.sets || [];
         sets.forEach((set, i) => {
-            exMd += `| ${i + 1} | ${set.weight || 0} | ${set.reps || 0} |\n`;
+            let weightDisplay = set.weight || 0;
+            if (exercise.exerciseType === 'bodyweight') {
+                weightDisplay = set.weight > 0 ? `+${set.weight}` : 'BW';
+            }
+            exMd += `| ${i + 1} | ${weightDisplay} | ${set.reps || 0} |\n`;
         });
         return exMd + `\n`;
     }

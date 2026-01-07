@@ -70,6 +70,7 @@ export default function App() {
         return (
           <WorkoutSetup
             template={pendingTemplate}
+            exercises={exercises}
             onStart={(config) => {
               startWorkout(config);
               // LiveWorkout will render automatically via valid activeWorkout

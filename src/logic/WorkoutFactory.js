@@ -20,6 +20,8 @@ export const WorkoutFactory = {
             exercises: template.exercises.map(e => ({
                 ...e,
                 instanceId: Math.random().toString(36).substr(2, 9),
+                exerciseType: e.exerciseType || 'weighted',
+                activeEquipment: e.activeEquipment || null,
                 supersetId: e.supersetId || null,
                 sets: e.sets && e.sets.length > 0 ? e.sets.map((s, i) => ({
                     id: Date.now() + '-' + i + '-' + Math.random().toString(36).substr(2, 5),
@@ -27,7 +29,7 @@ export const WorkoutFactory = {
                     reps: s.reps || 0,
                     completed: false,
                     rest: s.rest || 90
-                })) : [{ id: '1', weight: 0, reps: 0, completed: false }]
+                })) : [{ id: '1', weight: 0, reps: 0, completed: false, rest: 90 }]
             })),
         };
     },

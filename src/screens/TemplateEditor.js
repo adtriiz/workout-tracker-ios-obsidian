@@ -47,6 +47,12 @@ const TemplateEditor = ({ exercises, onSave, onCancel, initialTemplate = null })
         setTemplateExercises(updated);
     };
 
+    const handleUpdateEquipment = (exerciseIndex, equipment) => {
+        const updated = [...templateExercises];
+        updated[exerciseIndex].activeEquipment = equipment;
+        setTemplateExercises(updated);
+    };
+
     const handleAddSet = (exerciseIndex) => {
         const updated = [...templateExercises];
         const previousSet = updated[exerciseIndex].sets[updated[exerciseIndex].sets.length - 1];
@@ -202,8 +208,18 @@ const TemplateEditor = ({ exercises, onSave, onCancel, initialTemplate = null })
                                 ]}>
                                     <View style={styles.cardHeader}>
                                         <View>
-                                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                                                 <Text style={styles.exerciseName}>{ex.name.toUpperCase()}</Text>
+                                                {ex.exerciseType === 'bodyweight' && (
+                                                    <View style={[styles.badge, styles.badgeBW]}>
+                                                        <Text style={styles.badgeText}>BW</Text>
+                                                    </View>
+                                                )}
+                                                {ex.activeEquipment && (
+                                                    <View style={[styles.badge, styles.badgeEquipment]}>
+                                                        <Text style={styles.badgeText}>{ex.activeEquipment}</Text>
+                                                    </View>
+                                                )}
                                                 {(isSupersetStart || isSupersetEnd) && (
                                                     <View style={styles.supersetBadge}>
                                                         <LinkIcon color={COLORS.background} size={10} />
@@ -211,7 +227,10 @@ const TemplateEditor = ({ exercises, onSave, onCancel, initialTemplate = null })
                                                     </View>
                                                 )}
                                             </View>
-                                            <Text style={styles.exerciseSubtitle}>{ex.category}</Text>
+                                            <Text style={styles.exerciseSubtitle}>
+                                                {ex.category}
+                                                {ex.exerciseType === 'bodyweight' ? ' • BODYWEIGHT' : ''}
+                                            </Text>
                                         </View>
                                         <View style={styles.cardActions}>
                                             {index < templateExercises.length - 1 && (
@@ -237,6 +256,28 @@ const TemplateEditor = ({ exercises, onSave, onCancel, initialTemplate = null })
                                             </TouchableOpacity>
                                         </View>
                                     </View>
+
+                                    {ex.exerciseType === 'weighted' && ex.equipmentOptions && ex.equipmentOptions.length > 0 && (
+                                        <View style={styles.equipmentSelector}>
+                                            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
+                                                {ex.equipmentOptions.map(eq => (
+                                                    <TouchableOpacity
+                                                        key={eq}
+                                                        style={[
+                                                            styles.eqChip,
+                                                            ex.activeEquipment === eq && styles.eqChipSelected
+                                                        ]}
+                                                        onPress={() => handleUpdateEquipment(index, eq)}
+                                                    >
+                                                        <Text style={[
+                                                            styles.eqChipText,
+                                                            ex.activeEquipment === eq && styles.eqChipTextSelected
+                                                        ]}>{eq}</Text>
+                                                    </TouchableOpacity>
+                                                ))}
+                                            </ScrollView>
+                                        </View>
+                                    )}
 
                                     <View style={styles.setsHeader}>
                                         <Text style={[styles.colLabel, { flex: 0.5 }]}>SET</Text>
@@ -564,6 +605,46 @@ const styles = StyleSheet.create({
         color: COLORS.background,
         fontFamily: TYPOGRAPHY.familyMonoBold,
         fontSize: 9,
+    },
+    equipmentSelector: {
+        marginBottom: SPACING.md,
+        paddingHorizontal: SPACING.xs,
+    },
+    eqChip: {
+        paddingHorizontal: 10,
+        paddingVertical: 4,
+        borderWidth: BORDERS.thin,
+        borderColor: COLORS.border,
+        borderRadius: 4,
+    },
+    eqChipSelected: {
+        backgroundColor: COLORS.primary,
+        borderColor: COLORS.primary,
+    },
+    eqChipText: {
+        color: COLORS.textMuted,
+        fontFamily: TYPOGRAPHY.familyMono,
+        fontSize: 9,
+    },
+    eqChipTextSelected: {
+        color: COLORS.background,
+        fontFamily: TYPOGRAPHY.familyMonoBold,
+    },
+    badge: {
+        paddingHorizontal: 6,
+        paddingVertical: 2,
+        borderRadius: 4,
+    },
+    badgeBW: {
+        backgroundColor: COLORS.success,
+    },
+    badgeEquipment: {
+        backgroundColor: COLORS.primary,
+    },
+    badgeText: {
+        color: COLORS.background,
+        fontFamily: TYPOGRAPHY.familyMonoBold,
+        fontSize: 8,
     },
 });
 

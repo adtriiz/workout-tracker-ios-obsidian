@@ -19,6 +19,7 @@ describe('WorkoutFactory', () => {
         // Check first exercise structure
         const bench = workout.exercises[0];
         expect(bench.name).toBe('Bench Press');
+        expect(bench.exerciseType).toBe('weighted'); // Default from factory
         expect(bench.instanceId).toBeDefined();
         expect(bench.sets).toHaveLength(1);
         expect(bench.sets[0]).toEqual(expect.objectContaining({

@@ -37,7 +37,13 @@ export const StorageService = {
 
     // Helpers
     async getExercises() {
-        return (await this.load(KEYS.EXERCISES)) || [];
+        const exercises = (await this.load(KEYS.EXERCISES)) || [];
+        // Migration: ensure all exercises have exerciseType field
+        return exercises.map(ex => ({
+            ...ex,
+            exerciseType: ex.exerciseType || 'weighted',
+            equipmentOptions: ex.equipmentOptions || [],
+        }));
     },
 
     async saveExercise(exercise) {
@@ -104,9 +110,11 @@ export const StorageService = {
                 tags: 'tags',
             },
             tags: ['#workout/gym'],
+            userBodyweight: null, // Optional: used for bodyweight exercise volume calculations
         };
         const settings = await this.load(KEYS.SETTINGS);
-        return settings || defaultSettings;
+        // Merge with defaults to ensure new fields are present
+        return settings ? { ...defaultSettings, ...settings } : defaultSettings;
     },
 
     async saveSettings(settings) {

@@ -98,14 +98,28 @@ const LiveWorkout = ({ workout, onAddSet, onUpdateSet, onFinish, onAbort }) => {
                                 {(group.type === 'superset' ? group.exercises : [group.exercise]).map((exercise) => (
                                     <View key={exercise.instanceId} style={styles.exerciseCard}>
                                         <View style={styles.exerciseHeader}>
-                                            <Text style={styles.exerciseTitle}>{exercise.name.toUpperCase()}</Text>
+                                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                                                <Text style={styles.exerciseTitle}>{exercise.name.toUpperCase()}</Text>
+                                                {exercise.exerciseType === 'bodyweight' && (
+                                                    <View style={[styles.badge, styles.badgeBW]}>
+                                                        <Text style={styles.badgeText}>BW</Text>
+                                                    </View>
+                                                )}
+                                                {exercise.activeEquipment && (
+                                                    <View style={[styles.badge, styles.badgeEquipment]}>
+                                                        <Text style={styles.badgeText}>{exercise.activeEquipment}</Text>
+                                                    </View>
+                                                )}
+                                            </View>
                                             <Text style={styles.exerciseCategory}>{exercise.category || 'GENERAL'}</Text>
                                         </View>
 
                                         <View style={styles.setGrid}>
                                             <View style={styles.setRowHeader}>
                                                 <Text style={[styles.setLabel, { flex: 0.5 }]}>SET</Text>
-                                                <Text style={[styles.setLabel, { flex: 1 }]}>WEIGHT</Text>
+                                                <Text style={[styles.setLabel, { flex: 1 }]}>
+                                                    {exercise.exerciseType === 'bodyweight' ? '+ KG' : 'WEIGHT'}
+                                                </Text>
                                                 <Text style={[styles.setLabel, { flex: 1 }]}>REPS</Text>
                                                 <Text style={[styles.setLabel, { flex: 0.5 }]}></Text>
                                             </View>
@@ -317,6 +331,22 @@ const styles = StyleSheet.create({
         color: COLORS.primary,
         fontFamily: TYPOGRAPHY.familyMonoBold,
         fontSize: TYPOGRAPHY.size.xs,
+    },
+    badge: {
+        paddingHorizontal: 6,
+        paddingVertical: 2,
+        borderRadius: 4,
+    },
+    badgeBW: {
+        backgroundColor: COLORS.success,
+    },
+    badgeEquipment: {
+        backgroundColor: COLORS.primary,
+    },
+    badgeText: {
+        color: COLORS.background,
+        fontFamily: TYPOGRAPHY.familyMonoBold,
+        fontSize: 8,
     },
 });
 

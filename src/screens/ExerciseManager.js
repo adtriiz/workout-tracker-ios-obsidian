@@ -3,21 +3,35 @@ import { StyleSheet, Text, View, ScrollView, TouchableOpacity, TextInput, Modal,
 import { COLORS, SPACING, TYPOGRAPHY, BORDERS } from '../theme/tokens';
 import { Plus, X, Search, Dumbbell, Trash2 } from 'lucide-react-native';
 
+const EQUIPMENT_OPTIONS = ['BAR', 'DUMBBELL', 'CABLE', 'BAND', 'MACHINE'];
+
 const ExerciseManager = ({ exercises, muscleGroups, onAddExercise, onDeleteExercise, onClose }) => {
     const [name, setName] = useState('');
     const [category, setCategory] = useState('');
     const [notes, setNotes] = useState('');
+    const [exerciseType, setExerciseType] = useState('weighted');
+    const [equipmentOptions, setEquipmentOptions] = useState([]);
     const [isModalVisible, setIsModalVisible] = useState(false);
     const [selectedGroup, setSelectedGroup] = useState('ALL');
 
     const handleSave = () => {
         if (name.trim()) {
-            onAddExercise(name, category || 'GENERAL', notes);
+            onAddExercise(name, category || 'GENERAL', notes, exerciseType, equipmentOptions);
             setName('');
             setCategory('');
             setNotes('');
+            setExerciseType('weighted');
+            setEquipmentOptions([]);
             setIsModalVisible(false);
         }
+    };
+
+    const toggleEquipment = (equipment) => {
+        setEquipmentOptions(prev =>
+            prev.includes(equipment)
+                ? prev.filter(e => e !== equipment)
+                : [...prev, equipment]
+        );
     };
 
     const filteredExercises = exercises.filter(e =>
@@ -96,9 +110,19 @@ const ExerciseManager = ({ exercises, muscleGroups, onAddExercise, onDeleteExerc
                         filteredExercises.map((ex) => (
                             <View key={ex.id} style={styles.exerciseItem}>
                                 <View style={{ flex: 1, paddingRight: SPACING.md }}>
-                                    <Text style={styles.exerciseName}>{ex.name.toUpperCase()}</Text>
                                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                                        <Text style={styles.exerciseName}>{ex.name.toUpperCase()}</Text>
+                                        <View style={[styles.typeBadge, ex.exerciseType === 'bodyweight' && styles.typeBadgeBW]}>
+                                            <Text style={styles.typeBadgeText}>
+                                                {ex.exerciseType === 'bodyweight' ? 'BW' : 'WT'}
+                                            </Text>
+                                        </View>
+                                    </View>
+                                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                                         <Text style={styles.exerciseCategory}>{ex.category}</Text>
+                                        {ex.equipmentOptions && ex.equipmentOptions.length > 0 && (
+                                            <Text style={styles.exerciseNotes}>• {ex.equipmentOptions.join(', ')}</Text>
+                                        )}
                                         {ex.notes && <Text style={styles.exerciseNotes}>• {ex.notes}</Text>}
                                     </View>
                                 </View>
@@ -121,6 +145,24 @@ const ExerciseManager = ({ exercises, muscleGroups, onAddExercise, onDeleteExerc
                             <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
                                 <View style={styles.modalContent}>
                                     <Text style={styles.modalTitle}>NEW_ENTRY_REGISTRATION</Text>
+
+                                    <View style={styles.inputGroup}>
+                                        <Text style={styles.label}>EXERCISE_TYPE:</Text>
+                                        <View style={styles.typeToggle}>
+                                            <TouchableOpacity
+                                                style={[styles.typeButton, exerciseType === 'weighted' && styles.typeButtonSelected]}
+                                                onPress={() => setExerciseType('weighted')}
+                                            >
+                                                <Text style={[styles.typeButtonText, exerciseType === 'weighted' && styles.typeButtonTextSelected]}>WEIGHTED</Text>
+                                            </TouchableOpacity>
+                                            <TouchableOpacity
+                                                style={[styles.typeButton, exerciseType === 'bodyweight' && styles.typeButtonSelectedBW]}
+                                                onPress={() => setExerciseType('bodyweight')}
+                                            >
+                                                <Text style={[styles.typeButtonText, exerciseType === 'bodyweight' && styles.typeButtonTextSelected]}>BODYWEIGHT</Text>
+                                            </TouchableOpacity>
+                                        </View>
+                                    </View>
 
                                     <View style={styles.inputGroup}>
                                         <Text style={styles.label}>IDENTIFIER:</Text>
@@ -183,6 +225,23 @@ const ExerciseManager = ({ exercises, muscleGroups, onAddExercise, onDeleteExerc
                                             multiline
                                         />
                                     </View>
+
+                                    {exerciseType === 'weighted' && (
+                                        <View style={styles.inputGroup}>
+                                            <Text style={styles.label}>EQUIPMENT (OPTIONAL):</Text>
+                                            <View style={styles.equipmentContainer}>
+                                                {EQUIPMENT_OPTIONS.map(eq => (
+                                                    <TouchableOpacity
+                                                        key={eq}
+                                                        style={[styles.equipmentChip, equipmentOptions.includes(eq) && styles.equipmentChipSelected]}
+                                                        onPress={() => toggleEquipment(eq)}
+                                                    >
+                                                        <Text style={[styles.equipmentChipText, equipmentOptions.includes(eq) && styles.equipmentChipTextSelected]}>{eq}</Text>
+                                                    </TouchableOpacity>
+                                                ))}
+                                            </View>
+                                        </View>
+                                    )}
 
                                     <View style={styles.modalActions}>
                                         <TouchableOpacity style={styles.cancelButton} onPress={() => setIsModalVisible(false)}>
@@ -369,6 +428,72 @@ const styles = StyleSheet.create({
         fontFamily: TYPOGRAPHY.familyMono,
         fontSize: 10,
         fontStyle: 'italic',
+    },
+    typeToggle: {
+        flexDirection: 'row',
+        gap: 0,
+    },
+    typeButton: {
+        flex: 1,
+        paddingVertical: SPACING.sm,
+        alignItems: 'center',
+        borderWidth: BORDERS.thin,
+        borderColor: COLORS.border,
+    },
+    typeButtonSelected: {
+        backgroundColor: COLORS.primary,
+        borderColor: COLORS.primary,
+    },
+    typeButtonSelectedBW: {
+        backgroundColor: COLORS.success,
+        borderColor: COLORS.success,
+    },
+    typeButtonText: {
+        color: COLORS.textMuted,
+        fontFamily: TYPOGRAPHY.familyMonoBold,
+        fontSize: TYPOGRAPHY.size.sm,
+    },
+    typeButtonTextSelected: {
+        color: COLORS.background,
+    },
+    typeBadge: {
+        backgroundColor: COLORS.primary,
+        paddingHorizontal: 6,
+        paddingVertical: 2,
+        borderRadius: 4,
+    },
+    typeBadgeBW: {
+        backgroundColor: COLORS.success,
+    },
+    typeBadgeText: {
+        color: COLORS.background,
+        fontFamily: TYPOGRAPHY.familyMonoBold,
+        fontSize: 8,
+    },
+    equipmentContainer: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: SPACING.xs,
+    },
+    equipmentChip: {
+        paddingHorizontal: SPACING.sm,
+        paddingVertical: SPACING.xs,
+        borderWidth: BORDERS.thin,
+        borderColor: COLORS.border,
+        borderRadius: 12,
+    },
+    equipmentChipSelected: {
+        backgroundColor: COLORS.primary,
+        borderColor: COLORS.primary,
+    },
+    equipmentChipText: {
+        color: COLORS.textMuted,
+        fontFamily: TYPOGRAPHY.familyMono,
+        fontSize: 10,
+    },
+    equipmentChipTextSelected: {
+        color: COLORS.background,
+        fontFamily: TYPOGRAPHY.familyMonoBold,
     },
 });
 

@@ -6,11 +6,13 @@ import { X, Save, Hash } from 'lucide-react-native';
 const PropertyConfig = ({ settings, onSave, onClose }) => {
     const [config, setConfig] = useState(settings.yamlMapping);
     const [tags, setTags] = useState(settings.tags.join(', '));
+    const [userBodyweight, setUserBodyweight] = useState(settings.userBodyweight?.toString() || '');
 
     const handleSave = () => {
         onSave({
             yamlMapping: config,
             tags: tags.split(',').map(t => t.trim()).filter(t => t.startsWith('#')),
+            userBodyweight: parseFloat(userBodyweight) || null,
         });
         onClose();
     };
@@ -63,6 +65,20 @@ const PropertyConfig = ({ settings, onSave, onClose }) => {
                                 onChangeText={setTags}
                                 multiline
                             />
+                        </View>
+
+                        <Text style={styles.sectionTitle}>BIOMETRICS</Text>
+                        <View style={styles.inputGroup}>
+                            <Text style={styles.label}>USER_BODYWEIGHT (KG):</Text>
+                            <TextInput
+                                style={styles.input}
+                                value={userBodyweight}
+                                onChangeText={setUserBodyweight}
+                                keyboardType="numeric"
+                                placeholder="Ex: 75"
+                                placeholderTextColor={COLORS.textMuted}
+                            />
+                            <Text style={styles.hintText}>Used for bodyweight exercise volume calculation.</Text>
                         </View>
                     </ScrollView>
                 </View>
@@ -118,6 +134,13 @@ const styles = StyleSheet.create({
         borderColor: COLORS.border,
         padding: SPACING.md,
         fontFamily: TYPOGRAPHY.familyMono,
+    },
+    hintText: {
+        color: COLORS.textMuted,
+        fontFamily: TYPOGRAPHY.familyMono,
+        fontSize: 9,
+        marginTop: 4,
+        fontStyle: 'italic',
     },
 });
 

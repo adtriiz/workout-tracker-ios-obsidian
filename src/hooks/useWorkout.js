@@ -21,12 +21,14 @@ export const useExercises = () => {
         loadData();
     }, []);
 
-    const addExercise = async (name, category, notes = '') => {
+    const addExercise = async (name, category, notes = '', exerciseType = 'weighted', equipmentOptions = []) => {
         const newExercise = {
             id: Date.now().toString(),
             name,
             category: category.toUpperCase(),
             notes,
+            exerciseType,
+            equipmentOptions,
             createdAt: new Date().toISOString(),
         };
 
