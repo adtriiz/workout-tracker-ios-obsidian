@@ -5,25 +5,72 @@ import { Plus, X, Search, Dumbbell, Trash2 } from 'lucide-react-native';
 
 const EQUIPMENT_OPTIONS = ['BAR', 'DUMBBELL', 'CABLE', 'BAND', 'MACHINE'];
 
-const ExerciseManager = ({ exercises, muscleGroups, onAddExercise, onDeleteExercise, onClose }) => {
+const ExerciseManager = ({ exercises, muscleGroups, onAddExercise, onDeleteExercise, onEditExercise, onClose }) => {
     const [name, setName] = useState('');
     const [category, setCategory] = useState('');
     const [notes, setNotes] = useState('');
     const [exerciseType, setExerciseType] = useState('weighted');
     const [equipmentOptions, setEquipmentOptions] = useState([]);
     const [isModalVisible, setIsModalVisible] = useState(false);
+    const [isEditModalVisible, setIsEditModalVisible] = useState(false);
+    const [editingExercise, setEditingExercise] = useState(null);
     const [selectedGroup, setSelectedGroup] = useState('ALL');
+    const [error, setError] = useState('');
 
-    const handleSave = () => {
+    const handleSave = async () => {
+        setError('');
         if (name.trim()) {
-            onAddExercise(name, category || 'GENERAL', notes, exerciseType, equipmentOptions);
-            setName('');
-            setCategory('');
-            setNotes('');
-            setExerciseType('weighted');
-            setEquipmentOptions([]);
-            setIsModalVisible(false);
+            try {
+                await onAddExercise(name, category || 'GENERAL', notes, exerciseType, equipmentOptions);
+                setName('');
+                setCategory('');
+                setNotes('');
+                setExerciseType('weighted');
+                setEquipmentOptions([]);
+                setIsModalVisible(false);
+            } catch (err) {
+                setError(err.message);
+            }
         }
+    };
+
+    const handleEdit = (exercise) => {
+        setEditingExercise(exercise);
+        setName(exercise.name);
+        setCategory(exercise.category || 'GENERAL');
+        setNotes(exercise.notes || '');
+        setExerciseType(exercise.exerciseType || 'weighted');
+        setEquipmentOptions(exercise.equipmentOptions || []);
+        setIsEditModalVisible(true);
+    };
+
+    const handleUpdate = async () => {
+        setError('');
+        if (name.trim() && editingExercise) {
+            try {
+                await onEditExercise(editingExercise.id, name, category || 'GENERAL', notes, exerciseType, equipmentOptions);
+                setEditingExercise(null);
+                setName('');
+                setCategory('');
+                setNotes('');
+                setExerciseType('weighted');
+                setEquipmentOptions([]);
+                setIsEditModalVisible(false);
+            } catch (err) {
+                setError(err.message);
+            }
+        }
+    };
+
+    const handleCancelEdit = () => {
+        setError('');
+        setEditingExercise(null);
+        setName('');
+        setCategory('');
+        setNotes('');
+        setExerciseType('weighted');
+        setEquipmentOptions([]);
+        setIsEditModalVisible(false);
     };
 
     const toggleEquipment = (equipment) => {
@@ -109,7 +156,7 @@ const ExerciseManager = ({ exercises, muscleGroups, onAddExercise, onDeleteExerc
                     ) : (
                         filteredExercises.map((ex) => (
                             <View key={ex.id} style={styles.exerciseItem}>
-                                <View style={{ flex: 1, paddingRight: SPACING.md }}>
+                                <TouchableOpacity onPress={() => handleEdit(ex)} style={{ flex: 1, paddingRight: SPACING.md }}>
                                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                                         <Text style={styles.exerciseName}>{ex.name.toUpperCase()}</Text>
                                         <View style={[styles.typeBadge, ex.exerciseType === 'bodyweight' && styles.typeBadgeBW]}>
@@ -125,7 +172,7 @@ const ExerciseManager = ({ exercises, muscleGroups, onAddExercise, onDeleteExerc
                                         )}
                                         {ex.notes && <Text style={styles.exerciseNotes}>• {ex.notes}</Text>}
                                     </View>
-                                </View>
+                                </TouchableOpacity>
                                 <TouchableOpacity onPress={() => onDeleteExercise(ex.id)}>
                                     <Trash2 color={COLORS.error} size={20} />
                                 </TouchableOpacity>
@@ -145,6 +192,12 @@ const ExerciseManager = ({ exercises, muscleGroups, onAddExercise, onDeleteExerc
                             <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
                                 <View style={styles.modalContent}>
                                     <Text style={styles.modalTitle}>NEW_ENTRY_REGISTRATION</Text>
+
+                                    {error ? (
+                                        <View style={styles.errorContainer}>
+                                            <Text style={styles.errorText}>{error}</Text>
+                                        </View>
+                                    ) : null}
 
                                     <View style={styles.inputGroup}>
                                         <Text style={styles.label}>EXERCISE_TYPE:</Text>
@@ -257,6 +310,135 @@ const ExerciseManager = ({ exercises, muscleGroups, onAddExercise, onDeleteExerc
                     </View>
                 </TouchableWithoutFeedback>
             </Modal>
+
+            <Modal visible={isEditModalVisible} animationType="fade" transparent>
+                <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+                    <View style={styles.modalOverlay}>
+                        <KeyboardAvoidingView
+                            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                            style={{ width: '100%' }}
+                        >
+                            <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+                                <View style={styles.modalContent}>
+                                    <Text style={styles.modalTitle}>EDIT_ENTRY_REGISTRATION</Text>
+
+                                    {error ? (
+                                        <View style={styles.errorContainer}>
+                                            <Text style={styles.errorText}>{error}</Text>
+                                        </View>
+                                    ) : null}
+
+                                    <View style={styles.inputGroup}>
+                                        <Text style={styles.label}>EXERCISE_TYPE:</Text>
+                                        <View style={styles.typeToggle}>
+                                            <TouchableOpacity
+                                                style={[styles.typeButton, exerciseType === 'weighted' && styles.typeButtonSelected]}
+                                                onPress={() => setExerciseType('weighted')}
+                                            >
+                                                <Text style={[styles.typeButtonText, exerciseType === 'weighted' && styles.typeButtonTextSelected]}>WEIGHTED</Text>
+                                            </TouchableOpacity>
+                                            <TouchableOpacity
+                                                style={[styles.typeButton, exerciseType === 'bodyweight' && styles.typeButtonSelectedBW]}
+                                                onPress={() => setExerciseType('bodyweight')}
+                                            >
+                                                <Text style={[styles.typeButtonText, exerciseType === 'bodyweight' && styles.typeButtonTextSelected]}>BODYWEIGHT</Text>
+                                            </TouchableOpacity>
+                                        </View>
+                                    </View>
+
+                                    <View style={styles.inputGroup}>
+                                        <Text style={styles.label}>IDENTIFIER:</Text>
+                                        <TextInput
+                                            style={styles.input}
+                                            value={name}
+                                            onChangeText={setName}
+                                            placeholder="Ex: Bench Press"
+                                            placeholderTextColor={COLORS.textMuted}
+                                        />
+                                    </View>
+
+                                    <View style={styles.inputGroup}>
+                                        <Text style={styles.label}>MUSCLE_GROUP:</Text>
+                                        <View>
+                                            <ScrollView
+                                                horizontal
+                                                showsHorizontalScrollIndicator={false}
+                                                contentContainerStyle={{ gap: 8, paddingVertical: 4 }}
+                                                style={{ marginBottom: 8, flexGrow: 0 }}
+                                            >
+                                                {muscleGroups.filter(g => g !== 'ALL').map(group => (
+                                                    <TouchableOpacity
+                                                        key={group}
+                                                        style={[styles.filterChip, category === group && styles.filterChipSelected]}
+                                                        onPress={() => {
+                                                            setCategory(group);
+                                                            Keyboard.dismiss();
+                                                        }}
+                                                    >
+                                                        <Text style={[styles.filterText, category === group && styles.filterTextSelected]}>{group}</Text>
+                                                    </TouchableOpacity>
+                                                ))}
+                                                <TouchableOpacity
+                                                    style={[styles.filterChip, !muscleGroups.includes(category) && category !== '' && styles.filterChipSelected]}
+                                                    onPress={() => setCategory('')}
+                                                >
+                                                    <Text style={[styles.filterText, !muscleGroups.includes(category) && category !== '' && styles.filterTextSelected]}>+ CUSTOM</Text>
+                                                </TouchableOpacity>
+                                            </ScrollView>
+
+                                            <TextInput
+                                                style={styles.input}
+                                                value={category}
+                                                onChangeText={setCategory}
+                                                placeholder="Select or type new..."
+                                                placeholderTextColor={COLORS.textMuted}
+                                            />
+                                        </View>
+                                    </View>
+
+                                    <View style={styles.inputGroup}>
+                                        <Text style={styles.label}>NOTES (OPTIONAL):</Text>
+                                        <TextInput
+                                            style={[styles.input, { height: 80, textAlignVertical: 'top' }]}
+                                            value={notes}
+                                            onChangeText={setNotes}
+                                            placeholder="Technique cues, machine settings..."
+                                            placeholderTextColor={COLORS.textMuted}
+                                            multiline
+                                        />
+                                    </View>
+
+                                    {exerciseType === 'weighted' && (
+                                        <View style={styles.inputGroup}>
+                                            <Text style={styles.label}>EQUIPMENT (OPTIONAL):</Text>
+                                            <View style={styles.equipmentContainer}>
+                                                {EQUIPMENT_OPTIONS.map(eq => (
+                                                    <TouchableOpacity
+                                                        key={eq}
+                                                        style={[styles.equipmentChip, equipmentOptions.includes(eq) && styles.equipmentChipSelected]}
+                                                        onPress={() => toggleEquipment(eq)}
+                                                    >
+                                                        <Text style={[styles.equipmentChipText, equipmentOptions.includes(eq) && styles.equipmentChipTextSelected]}>{eq}</Text>
+                                                    </TouchableOpacity>
+                                                ))}
+                                            </View>
+                                        </View>
+                                    )}
+
+                                    <View style={styles.modalActions}>
+                                        <TouchableOpacity style={styles.cancelButton} onPress={handleCancelEdit}>
+                                            <Text style={styles.cancelText}>ABORT</Text>
+                                        </TouchableOpacity>
+                                        <TouchableOpacity style={styles.saveButton} onPress={handleUpdate}>
+                                            <Text style={styles.saveText}>UPDATE</Text>
+                                        </TouchableOpacity>
+                                    </View>
+                                </View>
+                            </TouchableWithoutFeedback>
+                        </KeyboardAvoidingView>
+                    </View>
+                </TouchableWithoutFeedback>
+            </Modal>
         </View>
     );
 };
@@ -349,7 +531,20 @@ const styles = StyleSheet.create({
         color: COLORS.primary,
         fontFamily: TYPOGRAPHY.familyMonoBold,
         fontSize: TYPOGRAPHY.size.md,
-        marginBottom: SPACING.xl,
+        marginBottom: SPACING.lg,
+        textAlign: 'center',
+    },
+    errorContainer: {
+        backgroundColor: '#FFB10020',
+        borderWidth: BORDERS.thin,
+        borderColor: COLORS.primary,
+        padding: SPACING.md,
+        marginBottom: SPACING.lg,
+    },
+    errorText: {
+        color: COLORS.primary,
+        fontFamily: TYPOGRAPHY.familyMono,
+        fontSize: TYPOGRAPHY.size.sm,
         textAlign: 'center',
     },
     inputGroup: {

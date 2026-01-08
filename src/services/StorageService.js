@@ -63,6 +63,17 @@ export const StorageService = {
         await this.save(KEYS.EXERCISES, updated);
     },
 
+    async updateExercise(exercise) {
+        const exercises = await this.getExercises();
+        const index = exercises.findIndex((e) => e.id === exercise.id);
+        if (index >= 0) {
+            exercises[index] = { ...exercises[index], ...exercise };
+            await this.save(KEYS.EXERCISES, exercises);
+        } else {
+            throw new Error(`Exercise with id ${exercise.id} not found`);
+        }
+    },
+
     async getTemplates() {
         return (await this.load(KEYS.TEMPLATES)) || [];
     },

@@ -22,9 +22,18 @@ export const useExercises = () => {
     }, []);
 
     const addExercise = async (name, category, notes = '', exerciseType = 'weighted', equipmentOptions = []) => {
+        // Check for duplicate exercise name (case-insensitive)
+        const existingExercise = exercises.find(ex => 
+            ex.name.toLowerCase().trim() === name.toLowerCase().trim()
+        );
+
+        if (existingExercise) {
+            throw new Error(`Exercise "${name}" already exists`);
+        }
+
         const newExercise = {
             id: Date.now().toString(),
-            name,
+            name: name.trim(),
             category: category.toUpperCase(),
             notes,
             exerciseType,
@@ -51,7 +60,39 @@ export const useExercises = () => {
         await loadData();
     };
 
-    return { exercises, muscleGroups, loading, addExercise, deleteExercise, refresh: loadData };
+    const editExercise = async (id, name, category, notes = '', exerciseType = 'weighted', equipmentOptions = []) => {
+        // Check for duplicate exercise name (case-insensitive), excluding current exercise
+        const existingExercise = exercises.find(ex => 
+            ex.name.toLowerCase().trim() === name.toLowerCase().trim() && ex.id !== id
+        );
+
+        if (existingExercise) {
+            throw new Error(`Exercise "${name}" already exists`);
+        }
+
+        const updatedExercise = {
+            id,
+            name: name.trim(),
+            category: category.toUpperCase(),
+            notes,
+            exerciseType,
+            equipmentOptions,
+            updatedAt: new Date().toISOString(),
+        };
+
+        // If category is new, add to muscle groups
+        if (category && !muscleGroups.includes(category.toUpperCase())) {
+            const newGroups = [...muscleGroups, category.toUpperCase()].sort();
+            await StorageService.saveMuscleGroups(newGroups);
+            setMuscleGroups(newGroups);
+        }
+
+        await StorageService.updateExercise(updatedExercise);
+        await loadData();
+        return updatedExercise;
+    };
+
+    return { exercises, muscleGroups, loading, addExercise, deleteExercise, editExercise, refresh: loadData };
 };
 
 import { WorkoutFactory } from '../logic/WorkoutFactory';

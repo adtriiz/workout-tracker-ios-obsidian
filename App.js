@@ -30,7 +30,7 @@ export default function App() {
   const [pendingTemplate, setPendingTemplate] = useState(null);
   const { activeWorkout, startWorkout, addSet, updateSet, finishWorkout, cancelWorkout } = useWorkout();
   const { logs, deleteLog } = useLogs();
-  const { exercises, muscleGroups, addExercise, deleteExercise } = useExercises();
+  const { exercises, muscleGroups, addExercise, deleteExercise, editExercise } = useExercises();
   const { templates, addTemplate, deleteTemplate } = useTemplates();
   const { settings, saveSettings } = useSettings();
 
@@ -79,7 +79,7 @@ export default function App() {
           />
         );
       case 'EXERCISES':
-        return <ExerciseManager exercises={exercises} muscleGroups={muscleGroups} onAddExercise={addExercise} onDeleteExercise={deleteExercise} onClose={() => setCurrentScreen('DASHBOARD')} />;
+        return <ExerciseManager exercises={exercises} muscleGroups={muscleGroups} onAddExercise={addExercise} onDeleteExercise={deleteExercise} onEditExercise={editExercise} onClose={() => setCurrentScreen('DASHBOARD')} />;
       case 'EDITOR':
         return (
           <TemplateEditor
