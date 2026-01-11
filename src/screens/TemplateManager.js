@@ -24,7 +24,7 @@ const TemplateManager = ({ templates, exercises, onSaveTemplate, onDeleteTemplat
                 contentContainerStyle={styles.content}
                 keyboardDismissMode="on-drag"
             >
-                {templates.map(t => (
+                {templates.sort((a, b) => a.name.localeCompare(b.name)).map(t => (
                     <View key={t.id} style={styles.templateCard}>
                         <View style={{ flex: 1 }}>
                             <Text style={styles.templateName}>{t.name.toUpperCase()}</Text>

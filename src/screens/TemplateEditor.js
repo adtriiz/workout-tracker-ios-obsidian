@@ -110,9 +110,11 @@ const TemplateEditor = ({ exercises, onSave, onCancel, initialTemplate = null })
         });
     };
 
-    const filteredExercises = exercises.filter(e =>
-        selectedGroup === 'ALL' || (e.category || 'GENERAL') === selectedGroup
-    );
+    const filteredExercises = exercises
+        .filter(e =>
+            selectedGroup === 'ALL' || (e.category || 'GENERAL') === selectedGroup
+        )
+        .sort((a, b) => a.name.localeCompare(b.name));
 
 
     const handleToggleSuperset = (index) => {

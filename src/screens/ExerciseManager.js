@@ -81,9 +81,11 @@ const ExerciseManager = ({ exercises, muscleGroups, onAddExercise, onDeleteExerc
         );
     };
 
-    const filteredExercises = exercises.filter(e =>
-        selectedGroup === 'ALL' || (e.category || 'GENERAL') === selectedGroup
-    );
+    const filteredExercises = exercises
+        .filter(e =>
+            selectedGroup === 'ALL' || (e.category || 'GENERAL') === selectedGroup
+        )
+        .sort((a, b) => a.name.localeCompare(b.name));
 
     return (
         <View style={styles.container}>
