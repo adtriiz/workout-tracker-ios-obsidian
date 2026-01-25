@@ -10,8 +10,8 @@ export const MarkdownGenerator = {
         let markdown = `---\n`;
         markdown += `${yamlMapping.date}: ${dateStr}\n`;
         markdown += `${yamlMapping.type}: ${workoutType}\n`;
-        markdown += `${yamlMapping.duration}: ${workout.duration} min\n`;
-        markdown += `${yamlMapping.volume}: ${this.calculateTotalVolume(workout, settings)}\n`;
+        markdown += `${yamlMapping.duration}: ${workout.duration}\n`;
+
 
         // Per-exercise volume properties
         if (workout.exercises) {
@@ -57,10 +57,7 @@ export const MarkdownGenerator = {
         return markdown;
     },
 
-    calculateTotalVolume(workout, settings) {
-        if (!workout || !workout.exercises) return 0;
-        return workout.exercises.reduce((acc, ex) => acc + this.calculateExerciseVolume(ex, settings), 0);
-    },
+
 
     calculateExerciseVolume(exercise, settings) {
         if (!exercise || !exercise.sets) return 0;

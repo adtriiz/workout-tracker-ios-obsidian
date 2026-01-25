@@ -115,7 +115,6 @@ export const StorageService = {
         const defaultSettings = {
             yamlMapping: {
                 date: 'date',
-                volume: 'total_volume',
                 duration: 'duration',
                 type: 'workout_type',
                 tags: 'tags',
