@@ -15,6 +15,7 @@ import PropertyConfig from './src/screens/PropertyConfig';
 import WorkoutSetup from './src/screens/WorkoutSetup';
 import TemplateEditor from './src/screens/TemplateEditor';
 
+import WorkoutSummary from './src/screens/WorkoutSummary';
 import ActivityLog from './src/screens/ActivityLog';
 
 // Keep the splash screen visible while we fetch resources
@@ -28,8 +29,9 @@ export default function App() {
 
   const [currentScreen, setCurrentScreen] = useState('DASHBOARD');
   const [pendingTemplate, setPendingTemplate] = useState(null);
+  const [summaryWorkout, setSummaryWorkout] = useState(null);
   const { activeWorkout, startWorkout, addSet, updateSet, finishWorkout, cancelWorkout } = useWorkout();
-  const { logs, deleteLog } = useLogs();
+  const { logs, deleteLog, updateLog } = useLogs();
   const { exercises, muscleGroups, addExercise, deleteExercise, editExercise } = useExercises();
   const { templates, addTemplate, deleteTemplate } = useTemplates();
   const { settings, saveSettings } = useSettings();
@@ -43,9 +45,27 @@ export default function App() {
   const handleFinish = async () => {
     const completed = await finishWorkout();
     if (completed) {
-      await ObsidianExport.exportWorkout(completed);
-      setCurrentScreen('DASHBOARD');
+      setSummaryWorkout(completed);
+      setCurrentScreen('SUMMARY');
     }
+  };
+
+  const handleSummaryConfirm = async (feedback) => {
+    if (!summaryWorkout) return;
+
+    const finalWorkout = {
+      ...summaryWorkout,
+      ...feedback // rpe, rating, comments
+    };
+
+    // Update the log in storage
+    await updateLog(finalWorkout);
+
+    // Export to Obsidian
+    await ObsidianExport.exportWorkout(finalWorkout);
+
+    setSummaryWorkout(null);
+    setCurrentScreen('DASHBOARD');
   };
 
   if (!fontsLoaded && !fontError || !settings) {
@@ -66,6 +86,13 @@ export default function App() {
     }
 
     switch (currentScreen) {
+      case 'SUMMARY':
+        return (
+          <WorkoutSummary
+            workout={summaryWorkout}
+            onConfirm={handleSummaryConfirm}
+          />
+        );
       case 'SETUP':
         return (
           <WorkoutSetup
@@ -86,15 +113,6 @@ export default function App() {
             exercises={exercises}
             initialTemplate={pendingTemplate}
             onSave={async (template) => {
-              // If editing existing, we need to update. addTemplate handles overwrite if ID exists? 
-              // StorageService.saveTemplate likely overwrites based on ID. 
-              // Wait, StorageService.saveTemplate checks ID? No, it pushes. 
-              // I need to update saveTemplate logic or handle it here. 
-              // Let's assume addTemplate pushes new. I need updateTemplate.
-              // For v1, let's just use addTemplate which likely overwrites if I implemented it that way, 
-              // OR I need to delete old and add new.
-              // Let's check StorageService.saveTemplate.
-              // Actually, simpler: define updateTemplate in useWorkout.
               await addTemplate(template);
               setCurrentScreen('TEMPLATES');
             }}

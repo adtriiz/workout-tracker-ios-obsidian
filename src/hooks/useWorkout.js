@@ -23,7 +23,7 @@ export const useExercises = () => {
 
     const addExercise = async (name, category, notes = '', exerciseType = 'weighted', equipmentOptions = []) => {
         // Check for duplicate exercise name (case-insensitive)
-        const existingExercise = exercises.find(ex => 
+        const existingExercise = exercises.find(ex =>
             ex.name.toLowerCase().trim() === name.toLowerCase().trim()
         );
 
@@ -62,7 +62,7 @@ export const useExercises = () => {
 
     const editExercise = async (id, name, category, notes = '', exerciseType = 'weighted', equipmentOptions = []) => {
         // Check for duplicate exercise name (case-insensitive), excluding current exercise
-        const existingExercise = exercises.find(ex => 
+        const existingExercise = exercises.find(ex =>
             ex.name.toLowerCase().trim() === name.toLowerCase().trim() && ex.id !== id
         );
 
@@ -257,5 +257,10 @@ export const useLogs = () => {
         await loadLogs();
     };
 
-    return { logs, deleteLog, refresh: loadLogs };
+    const updateLog = async (log) => {
+        await StorageService.updateLog(log);
+        await loadLogs();
+    };
+
+    return { logs, deleteLog, updateLog, refresh: loadLogs };
 };

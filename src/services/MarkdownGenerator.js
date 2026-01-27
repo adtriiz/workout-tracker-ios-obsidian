@@ -11,6 +11,12 @@ export const MarkdownGenerator = {
         markdown += `${yamlMapping.date}: ${dateStr}\n`;
         markdown += `${yamlMapping.type}: ${workoutType}\n`;
         markdown += `${yamlMapping.duration}: ${workout.duration}\n`;
+        if (workout.rpe) {
+            markdown += `${yamlMapping.rpe || 'rpe'}: ${workout.rpe}\n`;
+        }
+        if (workout.rating) {
+            markdown += `${yamlMapping.rating || 'rating'}: ${workout.rating}\n`;
+        }
 
 
         // Per-exercise volume properties
@@ -53,6 +59,10 @@ export const MarkdownGenerator = {
                 markdown += `\n`;
             }
         });
+
+        if (workout.comments) {
+            markdown += `## Notes\n${workout.comments}\n`;
+        }
 
         return markdown;
     },

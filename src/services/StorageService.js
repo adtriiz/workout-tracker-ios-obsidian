@@ -111,6 +111,15 @@ export const StorageService = {
         await this.save(KEYS.LOGS, updated);
     },
 
+    async updateLog(updatedLog) {
+        const logs = await this.getLogs();
+        const index = logs.findIndex(l => l.id === updatedLog.id || l.startTime === updatedLog.startTime);
+        if (index >= 0) {
+            logs[index] = updatedLog;
+            await this.save(KEYS.LOGS, logs);
+        }
+    },
+
     async getSettings() {
         const defaultSettings = {
             yamlMapping: {
@@ -118,13 +127,19 @@ export const StorageService = {
                 duration: 'duration',
                 type: 'workout_type',
                 tags: 'tags',
+                rpe: 'rpe',
+                rating: 'rating',
             },
             tags: ['#workout/gym'],
             userBodyweight: null, // Optional: used for bodyweight exercise volume calculations
         };
         const settings = await this.load(KEYS.SETTINGS);
         // Merge with defaults to ensure new fields are present
-        return settings ? { ...defaultSettings, ...settings } : defaultSettings;
+        return settings ? { 
+            ...defaultSettings, 
+            ...settings, 
+            yamlMapping: { ...defaultSettings.yamlMapping, ...(settings.yamlMapping || {}) } 
+        } : defaultSettings;
     },
 
     async saveSettings(settings) {
