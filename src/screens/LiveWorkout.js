@@ -1,14 +1,118 @@
-import React, { useState, useEffect } from 'react';
-import { StyleSheet, Text, View, ScrollView, TouchableOpacity, TextInput, KeyboardAvoidingView, Platform, Keyboard, TouchableWithoutFeedback } from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import { StyleSheet, Text, View, ScrollView, TouchableOpacity, TextInput, KeyboardAvoidingView, Platform, Keyboard, TouchableWithoutFeedback, PanResponder, Animated, Alert } from 'react-native';
 import { COLORS, SPACING, TYPOGRAPHY, BORDERS } from '../theme/tokens';
-import { Play, Pause, Square, Plus, Trash2, ChevronDown, ChevronUp, X } from 'lucide-react-native';
+import { Square, Plus, Trash2, X, Check, Minus, Plus as PlusIcon } from 'lucide-react-native';
 
-const LiveWorkout = ({ workout, onAddSet, onUpdateSet, onFinish, onAbort }) => {
+// Custom Swipeable Row Component
+const SwipeableSetRow = ({ item, isActive, onUpdate, onToggle, onDelete }) => {
+    const { exercise, set, index } = item;
+    const translateX = useRef(new Animated.Value(0)).current;
 
+    const panResponder = useRef(
+        PanResponder.create({
+            onStartShouldSetPanResponder: () => false,
+            onMoveShouldSetPanResponder: (_, gestureState) => {
+                // only active if horizontal swipe is dominant
+                return Math.abs(gestureState.dx) > Math.abs(gestureState.dy) && Math.abs(gestureState.dx) > 10;
+            },
+            onPanResponderMove: (_, gestureState) => {
+                if (gestureState.dx < 0) { // Only swipe left
+                    translateX.setValue(gestureState.dx);
+                }
+            },
+            onPanResponderRelease: (_, gestureState) => {
+                if (gestureState.dx < -100) {
+                    // Swiped far enough - trigger delete logic
+                    // Animate off screen then call delete
+                    Animated.timing(translateX, {
+                        toValue: -500,
+                        duration: 200,
+                        useNativeDriver: true,
+                    }).start(() => {
+                        onDelete(exercise.instanceId, set.id);
+                        // Reset immediately for recycling (though this component likely unmounts)
+                        translateX.setValue(0);
+                    });
+                } else {
+                    // Reset
+                    Animated.spring(translateX, {
+                        toValue: 0,
+                        friction: 5,
+                        useNativeDriver: true,
+                    }).start();
+                }
+            },
+        })
+    ).current;
+
+    return (
+        <View style={styles.swipeContainer}>
+            {/* Background Delete Layer */}
+            <View style={styles.deleteBackground}>
+                <Trash2 color={COLORS.error} size={24} />
+            </View>
+
+            {/* Foreground Content */}
+            <Animated.View
+                style={[
+                    styles.setRow,
+                    set.completed && styles.setRowCompleted,
+                    isActive && styles.setRowActive,
+                    { transform: [{ translateX }] }
+                ]}
+                {...panResponder.panHandlers}
+            >
+                <View style={styles.setInfoContainer}>
+                    <Text style={styles.setExerciseName} numberOfLines={1}>
+                        {exercise.name}
+                    </Text>
+                    <View style={styles.setMetaRow}>
+                        <Text style={styles.setNumber}>Set {index + 1}</Text>
+                        {isActive && <Text style={styles.activeLabel}>CURRENT</Text>}
+                    </View>
+                </View>
+
+                <TextInput
+                    style={[styles.setInput, isActive && styles.setInputActive]}
+                    keyboardType="numeric"
+                    value={set.weight.toString()}
+                    placeholder="KG"
+                    placeholderTextColor={COLORS.textMuted}
+                    onChangeText={(val) => onUpdate(exercise.instanceId, set.id, { weight: parseFloat(val) || 0 })}
+                />
+
+                <TextInput
+                    style={[styles.setInput, isActive && styles.setInputActive]}
+                    keyboardType="numeric"
+                    value={set.reps.toString()}
+                    placeholder="REPS"
+                    placeholderTextColor={COLORS.textMuted}
+                    onChangeText={(val) => onUpdate(exercise.instanceId, set.id, { reps: parseInt(val) || 0 })}
+                />
+
+                <TouchableOpacity
+                    style={[styles.checkButton, set.completed && styles.checkButtonActive]}
+                    onPress={() => onToggle(exercise.instanceId, set.id, set.completed)}
+                >
+                    {set.completed ? (
+                        <Check size={20} color={COLORS.background} />
+                    ) : (
+                        <View style={styles.checkCircle} />
+                    )}
+                </TouchableOpacity>
+            </Animated.View>
+        </View>
+    );
+};
+
+const LiveWorkout = ({ workout, onAddSet, onUpdateSet, onDeleteSet, onFinish, onAbort }) => {
+    // ... existing state ... 
     const [timer, setTimer] = useState(0);
     const [isPaused, setIsPaused] = useState(false);
     const [restTimer, setRestTimer] = useState(0);
+    const scrollViewRef = useRef(null);
 
+    // ... existing timer useEffect ...
     useEffect(() => {
         let interval;
         if (!isPaused) {
@@ -20,10 +124,15 @@ const LiveWorkout = ({ workout, onAddSet, onUpdateSet, onFinish, onAbort }) => {
         return () => clearInterval(interval);
     }, [isPaused]);
 
+    // ... existing helpers ...
     const formatTime = (seconds) => {
         const mins = Math.floor(seconds / 60);
         const secs = seconds % 60;
         return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    };
+
+    const adjustRestTimer = (delta) => {
+        setRestTimer(prev => Math.max(0, prev + delta));
     };
 
     const handleToggleSet = (exerciseId, setId, currentCompleted) => {
@@ -37,10 +146,11 @@ const LiveWorkout = ({ workout, onAddSet, onUpdateSet, onFinish, onAbort }) => {
         }
     };
 
+    // ... grouping logic ...
     const groupExercises = (exercises) => {
         const groups = [];
         const processedSupersets = new Set();
-
+        const processedSingles = new Set();
         exercises.forEach((ex) => {
             if (ex.supersetId) {
                 if (!processedSupersets.has(ex.supersetId)) {
@@ -49,13 +159,144 @@ const LiveWorkout = ({ workout, onAddSet, onUpdateSet, onFinish, onAbort }) => {
                     processedSupersets.add(ex.supersetId);
                 }
             } else {
-                groups.push({ type: 'single', exercise: ex, id: ex.instanceId });
+                if (!processedSingles.has(ex.instanceId)) {
+                    groups.push({ type: 'single', exercise: ex, id: ex.instanceId });
+                    processedSingles.add(ex.instanceId);
+                }
             }
         });
         return groups;
     };
 
+    const getFlatSetSequence = (groupedExercises) => {
+        const sequence = [];
+        groupedExercises.forEach(group => {
+            if (group.type === 'superset') {
+                const maxSets = Math.max(...group.exercises.map(e => e.sets.length));
+                for (let i = 0; i < maxSets; i++) {
+                    group.exercises.forEach(exercise => {
+                        if (exercise.sets[i]) {
+                            sequence.push({
+                                exerciseId: exercise.instanceId,
+                                setId: exercise.sets[i].id,
+                                completed: exercise.sets[i].completed
+                            });
+                        }
+                    });
+                }
+            } else {
+                group.exercise.sets.forEach(set => {
+                    sequence.push({
+                        exerciseId: group.exercise.instanceId,
+                        setId: set.id,
+                        completed: set.completed
+                    });
+                });
+            }
+        });
+        return sequence;
+    };
+
     const groups = groupExercises(workout.exercises);
+    const flatSequence = getFlatSetSequence(groups);
+    const findActiveSet = () => flatSequence.find(s => !s.completed) || null;
+    const activeSet = findActiveSet();
+
+    const renderHeaderRow = () => (
+        <View style={styles.columnHeaderRow}>
+            <Text style={[styles.columnHeader, { flex: 1.5 }]}>EXERCISE</Text>
+            <Text style={[styles.columnHeader, { flex: 1, textAlign: 'center' }]}>KG</Text>
+            <Text style={[styles.columnHeader, { flex: 1, textAlign: 'center' }]}>REPS</Text>
+            <Text style={[styles.columnHeader, { width: 48, textAlign: 'center' }]}>LOG</Text>
+        </View>
+    );
+
+    const renderSuperset = (group) => {
+        // Calculate max sets to determine number of rows
+        const maxSets = Math.max(...group.exercises.map(e => e.sets.length));
+        const rows = [];
+
+        for (let i = 0; i < maxSets; i++) {
+            group.exercises.forEach(exercise => {
+                if (exercise.sets[i]) {
+                    const set = exercise.sets[i];
+                    const isActive = activeSet && activeSet.setId === set.id;
+                    rows.push(
+                        <SwipeableSetRow
+                            key={set.id}
+                            item={{ exercise, set, index: i }}
+                            isActive={isActive}
+                            onUpdate={onUpdateSet}
+                            onToggle={handleToggleSet}
+                            onDelete={onDeleteSet}
+                        />
+                    );
+                }
+            });
+        }
+
+        return (
+            <View key={group.id} style={styles.supersetContainer}>
+                <View style={styles.supersetHeader}>
+                    <Text style={styles.supersetTitle}>SUPERSET GROUP</Text>
+                    <View style={styles.supersetBadges}>
+                        {group.exercises.map(ex => (
+                            <Text key={ex.instanceId} style={styles.supersetBadgeText}>{ex.name}</Text>
+                        ))}
+                    </View>
+                </View>
+                {renderHeaderRow()}
+                {rows}
+                <View style={styles.supersetActions}>
+                    {group.exercises.map(ex => (
+                        <TouchableOpacity
+                            key={`add-${ex.instanceId}`}
+                            style={styles.addSetButtonSmall}
+                            onPress={() => onAddSet(ex.instanceId)}
+                        >
+                            <Plus color={COLORS.primary} size={14} />
+                            <Text style={styles.addSetButtonTextSmall}>Add {ex.name}</Text>
+                        </TouchableOpacity>
+                    ))}
+                </View>
+            </View>
+        );
+    };
+
+    const renderSingleExercise = (group) => {
+        const { exercise } = group;
+        return (
+            <View key={exercise.instanceId} style={styles.exerciseCard}>
+                <View style={styles.exerciseHeader}>
+                    <Text style={styles.exerciseTitle}>{exercise.name.toUpperCase()}</Text>
+                    {exercise.activeEquipment && (
+                        <Text style={styles.exerciseSubtitle}>{exercise.activeEquipment}</Text>
+                    )}
+                </View>
+
+                {renderHeaderRow()}
+
+                {exercise.sets.map((set, i) => {
+                    const isActive = activeSet && activeSet.setId === set.id;
+                    return (
+                        <SwipeableSetRow
+                            key={set.id}
+                            item={{ exercise, set, index: i }}
+                            isActive={isActive}
+                            onUpdate={onUpdateSet}
+                            onToggle={handleToggleSet}
+                            onDelete={onDeleteSet}
+                        />
+                    );
+                })}
+
+                <TouchableOpacity style={styles.addSetButton} onPress={() => onAddSet(exercise.instanceId)}>
+                    <Plus color={COLORS.primary} size={16} />
+                    <Text style={styles.addSetButtonText}>ADD SET</Text>
+                </TouchableOpacity>
+            </View>
+        );
+    };
 
     return (
         <KeyboardAvoidingView
@@ -68,99 +309,38 @@ const LiveWorkout = ({ workout, onAddSet, onUpdateSet, onFinish, onAbort }) => {
                         <TouchableOpacity onPress={onAbort} style={{ padding: 8 }}>
                             <X color={COLORS.error} size={24} />
                         </TouchableOpacity>
-                        <View>
-                            <Text style={styles.headerLabel}>SESSION_TIMER</Text>
-                            <Text style={styles.headerTimer}>{formatTime(timer)}</Text>
+                        <View style={styles.headerTimerContainer}>
+                            <Text style={styles.mainTimer}>{formatTime(timer)}</Text>
+                            <Text style={styles.timerLabel}>ELAPSED</Text>
                         </View>
-                        <View style={{ alignItems: 'center' }}>
-                            <Text style={styles.headerLabel}>REST_TIMER</Text>
-                            <Text style={[styles.headerTimer, { color: COLORS.success }]}>{formatTime(restTimer)}</Text>
+                        <View style={styles.headerTimerContainer}>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                                <TouchableOpacity onPress={() => adjustRestTimer(-10)} style={{ padding: 4 }}>
+                                    <Minus size={12} color={COLORS.textMuted} />
+                                </TouchableOpacity>
+                                <Text style={[styles.mainTimer, { color: COLORS.success }]}>{formatTime(restTimer)}</Text>
+                                <TouchableOpacity onPress={() => adjustRestTimer(10)} style={{ padding: 4 }}>
+                                    <PlusIcon size={12} color={COLORS.textMuted} />
+                                </TouchableOpacity>
+                            </View>
+                            <Text style={styles.timerLabel}>REST</Text>
                         </View>
                         <TouchableOpacity style={styles.finishButton} onPress={onFinish}>
                             <Square color={COLORS.background} size={20} fill={COLORS.background} />
-                            <Text style={styles.finishButtonText}>FINISH</Text>
+                            <Text style={styles.finishButtonText}>END</Text>
                         </TouchableOpacity>
                     </View>
 
                     <ScrollView
+                        ref={scrollViewRef}
                         contentContainerStyle={styles.content}
                         keyboardDismissMode="on-drag"
                         keyboardShouldPersistTaps="handled"
                     >
                         {groups.map((group) => (
-                            <View key={group.id} style={group.type === 'superset' ? styles.supersetContainer : null}>
-                                {group.type === 'superset' && (
-                                    <View style={styles.supersetTag}>
-                                        <Text style={styles.supersetTagText}>SUPERSET_GROUP</Text>
-                                    </View>
-                                )}
-
-                                {(group.type === 'superset' ? group.exercises : [group.exercise]).map((exercise) => (
-                                    <View key={exercise.instanceId} style={styles.exerciseCard}>
-                                        <View style={styles.exerciseHeader}>
-                                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                                                <Text style={styles.exerciseTitle}>{exercise.name.toUpperCase()}</Text>
-                                                {exercise.exerciseType === 'bodyweight' && (
-                                                    <View style={[styles.badge, styles.badgeBW]}>
-                                                        <Text style={styles.badgeText}>BW</Text>
-                                                    </View>
-                                                )}
-                                                {exercise.activeEquipment && (
-                                                    <View style={[styles.badge, styles.badgeEquipment]}>
-                                                        <Text style={styles.badgeText}>{exercise.activeEquipment}</Text>
-                                                    </View>
-                                                )}
-                                            </View>
-                                            <Text style={styles.exerciseCategory}>{exercise.category || 'GENERAL'}</Text>
-                                        </View>
-
-                                        <View style={styles.setGrid}>
-                                            <View style={styles.setRowHeader}>
-                                                <Text style={[styles.setLabel, { flex: 0.5 }]}>SET</Text>
-                                                <Text style={[styles.setLabel, { flex: 1 }]}>
-                                                    {exercise.exerciseType === 'bodyweight' ? '+ KG' : 'WEIGHT'}
-                                                </Text>
-                                                <Text style={[styles.setLabel, { flex: 1 }]}>REPS</Text>
-                                                <Text style={[styles.setLabel, { flex: 0.5 }]}></Text>
-                                            </View>
-
-                                            {exercise.sets.map((set, setIndex) => (
-                                                <View key={set.id} style={[styles.setRow, set.completed && styles.setRowCompleted]}>
-                                                    <Text style={styles.setNumber}>{setIndex + 1}</Text>
-
-                                                    <TextInput
-                                                        style={styles.setInput}
-                                                        keyboardType="numeric"
-                                                        value={set.weight.toString()}
-                                                        onChangeText={(val) => onUpdateSet(exercise.instanceId, set.id, { weight: parseFloat(val) || 0 })}
-                                                    />
-
-                                                    <TextInput
-                                                        style={styles.setInput}
-                                                        keyboardType="numeric"
-                                                        value={set.reps.toString()}
-                                                        onChangeText={(val) => onUpdateSet(exercise.instanceId, set.id, { reps: parseInt(val) || 0 })}
-                                                    />
-
-                                                    <TouchableOpacity
-                                                        style={[styles.checkButton, set.completed && styles.checkButtonActive]}
-                                                        onPress={() => handleToggleSet(exercise.instanceId, set.id, set.completed)}
-                                                    >
-                                                        <Text style={[styles.checkButtonText, set.completed && styles.checkButtonTextActive]}>
-                                                            {set.completed ? 'DONE!' : 'LOG'}
-                                                        </Text>
-                                                    </TouchableOpacity>
-                                                </View>
-                                            ))}
-                                        </View>
-
-                                        <TouchableOpacity style={styles.addSetButton} onPress={() => onAddSet(exercise.instanceId)}>
-                                            <Plus color={COLORS.primary} size={16} />
-                                            <Text style={styles.addSetButtonText}>ADD_SET</Text>
-                                        </TouchableOpacity>
-                                    </View>
-                                ))}
-                            </View>
+                            group.type === 'superset'
+                                ? renderSuperset(group)
+                                : renderSingleExercise(group)
                         ))}
                     </ScrollView>
                 </View>
@@ -185,23 +365,27 @@ const styles = StyleSheet.create({
         borderBottomWidth: BORDERS.thick,
         borderBottomColor: COLORS.primary,
     },
-    headerLabel: {
-        color: COLORS.textMuted,
-        fontFamily: TYPOGRAPHY.familyMono,
-        fontSize: TYPOGRAPHY.size.xs,
+    headerTimerContainer: {
+        alignItems: 'center',
     },
-    headerTimer: {
+    mainTimer: {
         color: COLORS.text,
         fontFamily: TYPOGRAPHY.familyMonoBold,
-        fontSize: TYPOGRAPHY.size.xxl,
+        fontSize: TYPOGRAPHY.size.xl,
+        lineHeight: 28,
+    },
+    timerLabel: {
+        color: COLORS.textMuted,
+        fontFamily: TYPOGRAPHY.familyMono,
+        fontSize: 10,
     },
     finishButton: {
         backgroundColor: COLORS.primary,
         flexDirection: 'row',
         alignItems: 'center',
         paddingHorizontal: SPACING.md,
-        paddingVertical: SPACING.sm,
-        gap: SPACING.sm,
+        paddingVertical: 8,
+        gap: 6,
     },
     finishButtonText: {
         color: COLORS.background,
@@ -210,143 +394,205 @@ const styles = StyleSheet.create({
     },
     content: {
         padding: SPACING.md,
+        paddingBottom: 100,
     },
+    // Single Exercise Card
     exerciseCard: {
-        backgroundColor: COLORS.surface,
-        borderWidth: BORDERS.thin,
-        borderColor: COLORS.border,
-        padding: SPACING.md,
-        marginBottom: SPACING.md,
-    },
-    supersetContainer: {
-        padding: SPACING.xs,
-        backgroundColor: COLORS.surfaceElevated,
-        borderWidth: BORDERS.medium,
-        borderColor: COLORS.primary,
-        marginBottom: SPACING.md,
-    },
-    supersetTag: {
-        backgroundColor: COLORS.primary,
-        alignSelf: 'flex-start',
-        paddingHorizontal: SPACING.sm,
-        paddingVertical: 2,
-        marginBottom: SPACING.xs,
-    },
-    supersetTagText: {
-        color: COLORS.background,
-        fontFamily: TYPOGRAPHY.familyMonoBold,
-        fontSize: 10,
+        marginBottom: SPACING.lg,
     },
     exerciseHeader: {
-        marginBottom: SPACING.md,
+        marginBottom: SPACING.xs,
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'baseline',
     },
     exerciseTitle: {
-        color: COLORS.primary,
+        color: COLORS.text,
         fontFamily: TYPOGRAPHY.familyMonoBold,
         fontSize: TYPOGRAPHY.size.lg,
     },
-    exerciseCategory: {
+    exerciseSubtitle: {
         color: COLORS.textMuted,
         fontFamily: TYPOGRAPHY.familyMono,
         fontSize: TYPOGRAPHY.size.xs,
     },
-    setGrid: {
-        marginBottom: SPACING.sm,
+    // Superset Styles
+    supersetContainer: {
+        marginBottom: SPACING.lg,
+        borderWidth: 1,
+        borderColor: COLORS.primary,
+        padding: SPACING.sm,
+        backgroundColor: 'rgba(238, 255, 65, 0.05)', // faint primary tint
     },
-    setRowHeader: {
+    supersetHeader: {
+        marginBottom: SPACING.md,
+    },
+    supersetTitle: {
+        color: COLORS.primary,
+        fontFamily: TYPOGRAPHY.familyMonoBold,
+        fontSize: TYPOGRAPHY.size.sm,
+        marginBottom: 4,
+    },
+    supersetBadges: {
         flexDirection: 'row',
-        marginBottom: SPACING.sm,
-        paddingHorizontal: SPACING.xs,
+        flexWrap: 'wrap',
+        gap: 8,
     },
-    setLabel: {
+    supersetBadgeText: {
         color: COLORS.textMuted,
         fontFamily: TYPOGRAPHY.familyMono,
         fontSize: TYPOGRAPHY.size.xs,
+    },
+    supersetActions: {
+        flexDirection: 'row',
+        justifyContent: 'space-around',
+        marginTop: SPACING.sm,
+        borderTopWidth: 1,
+        borderTopColor: COLORS.border,
+        paddingTop: SPACING.sm,
+    },
+    // Set Row Unified Styles
+    swipeContainer: {
+        marginBottom: SPACING.xs,
+        height: 72,
+        position: 'relative',
+    },
+    deleteBackground: {
+        position: 'absolute',
+        right: 0,
+        top: 0,
+        bottom: 0,
+        width: 100,
+        backgroundColor: 'rgba(255, 0, 0, 0.1)',
+        alignItems: 'flex-end',
+        justifyContent: 'center',
+        paddingRight: SPACING.md,
     },
     setRow: {
         flexDirection: 'row',
         alignItems: 'center',
         gap: SPACING.sm,
-        marginBottom: SPACING.sm,
-        backgroundColor: COLORS.surfaceElevated,
-        padding: SPACING.xs,
-        borderWidth: BORDERS.thin,
+        // Remove marginBottom because container handles it
+        backgroundColor: COLORS.surface,
+        padding: SPACING.md,
+        borderWidth: 1,
         borderColor: COLORS.border,
+        height: 72,
     },
     setRowCompleted: {
+        backgroundColor: COLORS.surface,
         borderColor: COLORS.success,
-        backgroundColor: 'rgba(68, 255, 68, 0.1)', // COLORS.success with transparency
     },
-    setNumber: {
-        flex: 0.5,
+    setRowActive: {
+        borderColor: COLORS.primary,
+        backgroundColor: COLORS.surfaceElevated,
+        borderWidth: 2,
+        shadowColor: COLORS.primary,
+        shadowOffset: { width: 0, height: 0 },
+        shadowOpacity: 0.3,
+        shadowRadius: 8,
+        elevation: 4,
+        zIndex: 1,
+    },
+    setInfoContainer: {
+        flex: 1.5,
+        justifyContent: 'center',
+    },
+    setExerciseName: {
         color: COLORS.text,
         fontFamily: TYPOGRAPHY.familyMonoBold,
-        fontSize: TYPOGRAPHY.size.md,
-        textAlign: 'center',
+        fontSize: TYPOGRAPHY.size.sm,
+        marginBottom: 4,
+    },
+    setMetaRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+    },
+    setNumber: {
+        color: COLORS.textMuted,
+        fontFamily: TYPOGRAPHY.familyMono,
+        fontSize: 10,
+    },
+    activeLabel: {
+        color: COLORS.background,
+        backgroundColor: COLORS.primary,
+        fontSize: 9,
+        fontFamily: TYPOGRAPHY.familyMonoBold,
+        paddingHorizontal: 4,
+        paddingVertical: 1,
     },
     setInput: {
         flex: 1,
+        height: 48,
         backgroundColor: COLORS.background,
         color: COLORS.text,
-        fontFamily: TYPOGRAPHY.familyMono,
-        fontSize: TYPOGRAPHY.size.md,
-        padding: SPACING.sm,
-        borderWidth: BORDERS.thin,
-        borderColor: COLORS.border,
+        fontFamily: TYPOGRAPHY.familyMonoBold,
+        fontSize: TYPOGRAPHY.size.lg,
         textAlign: 'center',
+        borderWidth: 1,
+        borderColor: COLORS.border,
+    },
+    setInputActive: {
+        borderColor: COLORS.primary,
+        backgroundColor: COLORS.surface,
     },
     checkButton: {
-        flex: 0.5,
+        width: 48,
+        height: 48,
         backgroundColor: COLORS.surfaceElevated,
-        height: 40,
         alignItems: 'center',
         justifyContent: 'center',
-        borderWidth: BORDERS.thin,
+        borderWidth: 1,
         borderColor: COLORS.border,
     },
     checkButtonActive: {
         backgroundColor: COLORS.success,
         borderColor: COLORS.success,
     },
-    checkButtonText: {
-        color: COLORS.text,
-        fontFamily: TYPOGRAPHY.familyMonoBold,
-        fontSize: TYPOGRAPHY.size.xs,
-    },
-    checkButtonTextActive: {
-        color: COLORS.background,
+    checkCircle: {
+        width: 16,
+        height: 16,
+        borderRadius: 8,
+        borderWidth: 2,
+        borderColor: COLORS.textMuted,
     },
     addSetButton: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
         gap: SPACING.sm,
-        padding: SPACING.sm,
-        borderWidth: BORDERS.thin,
+        padding: SPACING.md,
+        borderWidth: 1,
         borderStyle: 'dashed',
-        borderColor: COLORS.primary,
-        marginTop: SPACING.sm,
+        borderColor: COLORS.border,
+        marginTop: SPACING.xs,
     },
     addSetButtonText: {
+        color: COLORS.textMuted,
+        fontFamily: TYPOGRAPHY.familyMono,
+        fontSize: TYPOGRAPHY.size.sm,
+    },
+    addSetButtonSmall: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 4,
+    },
+    addSetButtonTextSmall: {
         color: COLORS.primary,
+        fontFamily: TYPOGRAPHY.familyMono,
+        fontSize: 10,
+    },
+    columnHeaderRow: {
+        flexDirection: 'row',
+        paddingHorizontal: SPACING.md,
+        marginBottom: SPACING.xs,
+        gap: SPACING.sm,
+    },
+    columnHeader: {
+        color: COLORS.textMuted,
         fontFamily: TYPOGRAPHY.familyMonoBold,
-        fontSize: TYPOGRAPHY.size.xs,
-    },
-    badge: {
-        paddingHorizontal: 6,
-        paddingVertical: 2,
-        borderRadius: 4,
-    },
-    badgeBW: {
-        backgroundColor: COLORS.success,
-    },
-    badgeEquipment: {
-        backgroundColor: COLORS.primary,
-    },
-    badgeText: {
-        color: COLORS.background,
-        fontFamily: TYPOGRAPHY.familyMonoBold,
-        fontSize: 8,
+        fontSize: 10,
     },
 });
 

@@ -30,7 +30,7 @@ export default function App() {
   const [currentScreen, setCurrentScreen] = useState('DASHBOARD');
   const [pendingTemplate, setPendingTemplate] = useState(null);
   const [summaryWorkout, setSummaryWorkout] = useState(null);
-  const { activeWorkout, startWorkout, addSet, updateSet, finishWorkout, cancelWorkout } = useWorkout();
+  const { activeWorkout, startWorkout, addSet, updateSet, deleteSet, finishWorkout, cancelWorkout } = useWorkout();
   const { logs, deleteLog, updateLog } = useLogs();
   const { exercises, muscleGroups, addExercise, deleteExercise, editExercise } = useExercises();
   const { templates, addTemplate, deleteTemplate } = useTemplates();
@@ -79,6 +79,7 @@ export default function App() {
           workout={activeWorkout}
           onAddSet={addSet}
           onUpdateSet={updateSet}
+          onDeleteSet={deleteSet}
           onFinish={handleFinish}
           onAbort={cancelWorkout}
         />

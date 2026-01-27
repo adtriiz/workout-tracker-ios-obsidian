@@ -185,12 +185,24 @@ export const useWorkout = () => {
         setActiveWorkout(null);
     };
 
+    const deleteSet = (exerciseInstanceId, setId) => {
+        setActiveWorkout(prev => ({
+            ...prev,
+            exercises: prev.exercises.map(ex =>
+                ex.instanceId === exerciseInstanceId
+                    ? { ...ex, sets: ex.sets.filter(s => s.id !== setId) }
+                    : ex
+            )
+        }));
+    };
+
     return {
         activeWorkout,
         startWorkout,
         addExerciseToWorkout,
         updateSet,
         addSet,
+        deleteSet,
         finishWorkout,
         cancelWorkout
     };
